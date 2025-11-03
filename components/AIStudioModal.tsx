@@ -11,7 +11,7 @@ import VideoAnalyzer from './ai/VideoAnalyzer';
 import AudioTranscriber from './ai/AudioTranscriber';
 import LiveAgent from './ai/LiveAgent';
 import TextToSpeech from './ai/TextToSpeech';
-import CampaignIdeas from './ai/CampaignIdeas';
+import CampaignIdeas from './CampaignIdeas';
 
 type AITool = 'CHATBOT' | 'IMAGE_GENERATOR' | 'IMAGE_EDITOR' | 'IMAGE_ANALYZER' | 'VIDEO_GENERATOR' | 'VIDEO_ANALYZER' | 'AUDIO_TRANSCRIBER' | 'LIVE_AGENT' | 'TEXT_TO_SPEECH' | 'CAMPAIGN_IDEAS';
 

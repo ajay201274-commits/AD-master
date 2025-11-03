@@ -1,86 +1,107 @@
-// =================================================================
-// Enums
-// =================================================================
-
-export enum AdCategory {
-    ENTERTAINMENT = 'Entertainment',
-    FASHION_APPAREL = 'Fashion & Apparel',
-    FOOD_BEVERAGE = 'Food & Beverage',
-    TRAVEL = 'Travel',
-    TECH = 'Technology',
-    AUTOMOTIVE = 'Automotive',
-    SPORTS = 'Sports',
-    GAMING = 'Gaming',
-}
-
 export enum UserRole {
-    VIEWER = 'VIEWER',
-    UPLOADER = 'UPLOADER',
-    APP_OWNER = 'APP_OWNER'
+  VIEWER = 'VIEWER',
+  UPLOADER = 'UPLOADER',
+  APP_OWNER = 'APP_OWNER',
 }
 
 export enum AdType {
-    VIDEO = 'VIDEO',
-    IMAGE = 'IMAGE',
+  VIDEO = 'VIDEO',
+  IMAGE = 'IMAGE',
 }
 
-export enum TransactionType {
-    EARNED = 'EARNED',
-    WITHDRAWAL = 'WITHDRAWAL',
+export enum AdCategory {
+  ENTERTAINMENT = 'ENTERTAINTAINMENT',
+  SHOPPING = 'SHOPPING',
+  AUTOMOTIVE = 'AUTOMOTIVE',
+  TECHNOLOGY = 'TECHNOLOGY',
+  TRAVEL = 'TRAVEL',
+  FOOD = 'FOOD',
+  FINANCE = 'FINANCE',
 }
 
-export enum TransactionStatus {
-    PENDING = 'PENDING',
-    COMPLETED = 'COMPLETED',
-    FAILED = 'FAILED',
-}
-
-// =================================================================
-// Types
-// =================================================================
-
-export type SortBy = 'default' | 'reward-desc' | 'reward-asc' | 'duration-desc' | 'duration-asc';
-
-export type AppView = 'home' | 'my-ads';
-
-export type ToastType = 'success' | 'info' | 'error';
-
-export type Sentiment = 'Positive' | 'Negative' | 'Neutral';
-
-// =================================================================
-// Interfaces
-// =================================================================
-
-export interface Toast {
-    message: string;
-    type: ToastType;
+export enum AdStatus {
+  PENDING = 'PENDING',
+  APPROVED = 'APPROVED',
+  REJECTED = 'REJECTED',
 }
 
 export interface Ad {
   id: string;
-  type: AdType;
   title: string;
   description: string;
+  type: AdType;
   category: AdCategory;
+  reward: number;
+  duration: number; // in seconds
   contentUrl: string;
   thumbnailUrl: string;
-  posterImageUrl?: string; 
-  duration: number; // in seconds
-  reward: number; // in Rupees
-  rating?: number;
-  country?: string;
-  state?: string;
-  district?: string;
+  country: string;
+  state: string;
+  district: string;
   lat?: number;
   lng?: number;
+  rating?: number; // average rating
+  ratingCount?: number; // number of ratings
+  /** The unique identifier of the user who uploaded the ad. */
+  uploaderId: string;
+  /** The name of the user who uploaded the ad for display purposes. */
+  uploaderName: string;
+  status: AdStatus;
+  rejectionReason?: string;
+}
+
+export enum Sentiment {
+  POSITIVE = 'Positive',
+  NEGATIVE = 'Negative',
+  NEUTRAL = 'Neutral',
+}
+
+export interface Feedback {
+  id: string;
+  adId: string;
+  userId: string;
+  rating: number;
+  text: string;
+  sentiment: Sentiment;
+  summary: string;
+  date: string; // ISO string
+}
+
+export interface LeaderboardUser {
+  id: string;
+  name: string;
+  profilePictureUrl: string;
+  totalEarnings: number;
+  adsWatched: number;
 }
 
 export interface User {
-    id: string;
-    name: string;
-    email: string;
-    phone: string;
-    profilePictureUrl: string;
+  id: string;
+  name: string;
+  email: string;
+  phone: string;
+  profilePictureUrl: string;
+  role: UserRole;
+}
+
+export enum TransactionType {
+  EARNED = 'EARNED',
+  DEPOSIT = 'DEPOSIT',
+  WITHDRAWAL = 'WITHDRAWAL',
+}
+
+export enum TransactionStatus {
+  COMPLETED = 'COMPLETED',
+  PENDING = 'PENDING',
+}
+
+export interface Transaction {
+  id: string;
+  date: string; // ISO string
+  description: string;
+  amount: number;
+  type: TransactionType;
+  status: TransactionStatus;
 }
 
 export interface BankAccount {
@@ -88,26 +109,47 @@ export interface BankAccount {
   accountNumber: string;
   bankName: string;
   ifscCode: string;
+  upiId?: string;
 }
 
-export interface Transaction {
-    id: string;
-    type: TransactionType;
-    status: TransactionStatus;
-    description: string;
-    amount: number;
-    adId?: string;
-    bankAccount?: BankAccount;
-    date: string;
+export enum AppView {
+    HOME = 'home',
+    MY_ADS = 'my-ads',
 }
 
-export interface Feedback {
+export interface Friend {
   id: string;
-  adId: string;
-  userId: 'user-123';
-  rating: number;
+  name: string;
+  profilePictureUrl: string;
+  isOnline: boolean;
+}
+
+export type ToastType = 'success' | 'info' | 'error';
+
+export interface ToastMessage {
+  id: number;
+  message: string;
+  type: ToastType;
+}
+
+export enum ReportReason {
+  INAPPROPRIATE = 'Inappropriate or Offensive Content',
+  MISLEADING = 'Misleading Information or Scam',
+  VIOLENT = 'Violent or Graphic Content',
+  SPAM = 'Spam or Repetitive',
+  OTHER = 'Other',
+}
+
+// Chat Types
+export interface Message {
+  id: string;
+  senderId: string;
   text: string;
-  sentiment: Sentiment;
-  summary: string;
-  date: string;
+  timestamp: string; // ISO string
+  isRead?: boolean;
+}
+
+export interface Conversation {
+  contactId: string;
+  messages: Message[];
 }

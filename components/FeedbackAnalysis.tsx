@@ -6,9 +6,10 @@ import { PositiveIcon, NegativeIcon, NeutralIcon } from './icons/FeedbackIcons';
 interface FeedbackAnalysisProps {
   feedback: Feedback[];
   isLoading: boolean;
+  isOwner: boolean;
 }
 
-const FeedbackAnalysis: React.FC<FeedbackAnalysisProps> = ({ feedback, isLoading }) => {
+const FeedbackAnalysis: React.FC<FeedbackAnalysisProps> = ({ feedback, isLoading, isOwner }) => {
 
     const sentimentCounts = useMemo(() => {
         return feedback.reduce((acc, f) => {
@@ -51,38 +52,48 @@ const FeedbackAnalysis: React.FC<FeedbackAnalysisProps> = ({ feedback, isLoading
 
     return (
         <div className="mt-8 p-6 bg-slate-100 dark:bg-slate-900/50 rounded-xl">
-            <h2 className="text-2xl font-bold text-slate-900 dark:text-white mb-4">Feedback Analysis</h2>
+            <h2 className="text-2xl font-bold text-slate-900 dark:text-white mb-4">
+                {isOwner ? 'Feedback Analysis' : 'Reviews & Ratings'}
+            </h2>
             
             {totalFeedback === 0 ? (
-                <p className="text-center text-slate-500 dark:text-slate-400 py-8">No feedback has been submitted for this ad yet.</p>
+                <p className="text-center text-slate-500 dark:text-slate-400 py-8">
+                    {isOwner ? 'No feedback has been submitted for this ad yet.' : 'Be the first to leave a review!'}
+                </p>
             ) : (
                 <>
-                    <div className="mb-6">
-                        <h3 className="text-lg font-semibold text-slate-800 dark:text-slate-200 mb-2">Overall Sentiment</h3>
-                        <div className="flex h-4 rounded-full overflow-hidden bg-slate-200 dark:bg-slate-700">
-                            <div className="bg-green-500" style={{ width: `${positivePercentage}%` }} title={`Positive: ${positivePercentage.toFixed(1)}%`}></div>
-                            <div className="bg-slate-400" style={{ width: `${neutralPercentage}%` }} title={`Neutral: ${neutralPercentage.toFixed(1)}%`}></div>
-                            <div className="bg-red-500" style={{ width: `${negativePercentage}%` }} title={`Negative: ${negativePercentage.toFixed(1)}%`}></div>
+                    {isOwner && (
+                        <div className="mb-6">
+                            <h3 className="text-lg font-semibold text-slate-800 dark:text-slate-200 mb-2">Overall Sentiment</h3>
+                            <div className="flex h-4 rounded-full overflow-hidden bg-slate-200 dark:bg-slate-700">
+                                <div className="bg-green-500" style={{ width: `${positivePercentage}%` }} title={`Positive: ${positivePercentage.toFixed(1)}%`}></div>
+                                <div className="bg-slate-400" style={{ width: `${neutralPercentage}%` }} title={`Neutral: ${neutralPercentage.toFixed(1)}%`}></div>
+                                <div className="bg-red-500" style={{ width: `${negativePercentage}%` }} title={`Negative: ${negativePercentage.toFixed(1)}%`}></div>
+                            </div>
+                            <div className="flex justify-between text-xs mt-2 text-slate-500 dark:text-slate-400">
+                                <span className="flex items-center"><span className="w-2 h-2 rounded-full bg-green-500 mr-1.5"></span>Positive ({sentimentCounts['Positive'] || 0})</span>
+                                <span className="flex items-center"><span className="w-2 h-2 rounded-full bg-slate-400 mr-1.5"></span>Neutral ({sentimentCounts['Neutral'] || 0})</span>
+                                <span className="flex items-center"><span className="w-2 h-2 rounded-full bg-red-500 mr-1.5"></span>Negative ({sentimentCounts['Negative'] || 0})</span>
+                            </div>
                         </div>
-                         <div className="flex justify-between text-xs mt-2 text-slate-500 dark:text-slate-400">
-                            <span className="flex items-center"><span className="w-2 h-2 rounded-full bg-green-500 mr-1.5"></span>Positive ({sentimentCounts['Positive'] || 0})</span>
-                            <span className="flex items-center"><span className="w-2 h-2 rounded-full bg-slate-400 mr-1.5"></span>Neutral ({sentimentCounts['Neutral'] || 0})</span>
-                            <span className="flex items-center"><span className="w-2 h-2 rounded-full bg-red-500 mr-1.5"></span>Negative ({sentimentCounts['Negative'] || 0})</span>
-                        </div>
-                    </div>
+                    )}
                     
                     <div>
                         <h3 className="text-lg font-semibold text-slate-800 dark:text-slate-200 mb-3">All Reviews ({totalFeedback})</h3>
                         <div className="space-y-4 max-h-96 overflow-y-auto pr-2">
                             {feedback.map(f => (
                                 <div key={f.id} className="bg-white dark:bg-slate-800/60 p-4 rounded-lg border border-slate-200 dark:border-slate-700/80">
-                                    <div className="flex justify-between items-center mb-2">
-                                        {getSentimentPill(f.sentiment)}
-                                        <span className="text-xs text-slate-400 dark:text-slate-500">{new Date(f.date).toLocaleDateString()}</span>
+                                    <div className="flex justify-between items-start mb-2">
+                                        <div className="flex items-center space-x-2">
+                                            {isOwner && getSentimentPill(f.sentiment)}
+                                            <div className="text-xs text-amber-500 dark:text-amber-400">
+                                                {'★'.repeat(f.rating)}{'☆'.repeat(5 - f.rating)}
+                                            </div>
+                                        </div>
+                                        <span className="text-xs text-slate-400 dark:text-slate-500 flex-shrink-0">{new Date(f.date).toLocaleDateString()}</span>
                                     </div>
-                                    <p className="text-sm font-semibold italic text-slate-600 dark:text-slate-300 mb-2">"{f.summary}"</p>
+                                    {isOwner && <p className="text-sm font-semibold italic text-slate-600 dark:text-slate-300 mb-2">"{f.summary}"</p>}
                                     <p className="text-sm text-slate-500 dark:text-slate-400">{f.text}</p>
-                                    <div className="text-xs text-amber-500 mt-2">Rating: {'★'.repeat(f.rating)}{'☆'.repeat(5 - f.rating)}</div>
                                 </div>
                             ))}
                         </div>

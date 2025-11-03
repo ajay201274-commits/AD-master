@@ -2,9 +2,7 @@ import React, { useState, useCallback, useRef } from 'react';
 import { useDropzone } from 'react-dropzone';
 import { GoogleGenAI } from "@google/genai";
 import { AnalyzeIcon, SparklesIcon, Spinner } from '../icons/AIIcons';
-
-const FRAME_CAPTURE_INTERVAL_MS = 1000; // 1 frame per second
-const MAX_FRAMES = 30; // Limit to 30 frames to avoid huge request size
+import { fileToGenerativePart } from '../../utils/helpers';
 
 const VideoAnalyzer = () => {
     const [videoFile, setVideoFile] = useState<File | null>(null);
@@ -12,8 +10,6 @@ const VideoAnalyzer = () => {
     const [analysis, setAnalysis] = useState<string | null>(null);
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
-    const videoRef = useRef<HTMLVideoElement>(null);
-    const canvasRef = useRef<HTMLCanvasElement>(null);
 
     const onDrop = useCallback((acceptedFiles: File[]) => {
         if (acceptedFiles.length > 0) {
@@ -25,55 +21,9 @@ const VideoAnalyzer = () => {
 
     const { getRootProps, getInputProps, isDragActive } = useDropzone({
         onDrop,
-        accept: { 'video/*': ['.mp4', '.mov', '.webm'] },
+        accept: { 'video/*': ['.mp4', '.mov', '.webm', '.mpeg', '.mpg', '.avi', '.wmv', '.flv'] },
         multiple: false,
     });
-
-    const extractFrames = (): Promise<string[]> => {
-        return new Promise((resolve, reject) => {
-            const video = videoRef.current;
-            const canvas = canvasRef.current;
-            if (!video || !canvas || !videoFile) {
-                return reject(new Error("Video or canvas element not available."));
-            }
-
-            const videoUrl = URL.createObjectURL(videoFile);
-            video.src = videoUrl;
-            const frames: string[] = [];
-            const context = canvas.getContext('2d');
-            if(!context) return reject(new Error("Canvas context not available."));
-
-            video.onloadeddata = () => {
-                canvas.width = video.videoWidth;
-                canvas.height = video.videoHeight;
-                let capturedFrames = 0;
-
-                const captureFrame = () => {
-                    if (video.currentTime >= video.duration || capturedFrames >= MAX_FRAMES) {
-                        video.pause();
-                        URL.revokeObjectURL(videoUrl);
-                        resolve(frames);
-                        return;
-                    }
-
-                    context.drawImage(video, 0, 0, video.videoWidth, video.videoHeight);
-                    const frameDataUrl = canvas.toDataURL('image/jpeg', 0.8);
-                    frames.push(frameDataUrl.split(',')[1]); // Get base64 part
-                    capturedFrames++;
-                    
-                    video.currentTime += FRAME_CAPTURE_INTERVAL_MS / 1000;
-                };
-                
-                video.addEventListener('seeked', captureFrame);
-                video.currentTime = 0; // Start capturing from the beginning
-            };
-            
-            video.onerror = (e) => {
-                 URL.revokeObjectURL(videoUrl);
-                 reject(new Error("Error loading video file."));
-            }
-        });
-    };
 
     const handleAnalyze = async () => {
         if (!videoFile || !prompt.trim() || isLoading) return;
@@ -83,20 +33,13 @@ const VideoAnalyzer = () => {
         setAnalysis(null);
 
         try {
-            const frames = await extractFrames();
-            if (frames.length === 0) {
-                throw new Error("Could not extract any frames from the video.");
-            }
-            
             const ai = new GoogleGenAI({ apiKey: process.env.API_KEY as string });
 
-            const imageParts = frames.map(frameData => ({
-                inlineData: { data: frameData, mimeType: 'image/jpeg' }
-            }));
+            const videoPart = await fileToGenerativePart(videoFile);
 
             const response = await ai.models.generateContent({
                 model: 'gemini-2.5-pro',
-                contents: { parts: [{ text: prompt }, ...imageParts] },
+                contents: { parts: [{ text: prompt }, { inlineData: videoPart }] },
             });
             
             setAnalysis(response.text);
@@ -136,7 +79,6 @@ const VideoAnalyzer = () => {
                 <button onClick={handleAnalyze} disabled={isLoading || !videoFile || !prompt.trim()} className="mt-4 w-full py-3 bg-indigo-600 text-white font-bold rounded-lg disabled:bg-slate-600 disabled:cursor-not-allowed hover:bg-indigo-500 transition-colors flex items-center justify-center">
                     {isLoading ? <><Spinner className="w-5 h-5 mr-2" /> Analyzing...</> : <><AnalyzeIcon className="w-5 h-5 mr-2" /> Analyze Video</>}
                 </button>
-                 <p className="text-xs text-slate-500 text-center mt-2">Analyzes up to {MAX_FRAMES} frames (1 per second).</p>
             </div>
              <div className="md:w-1/2 flex flex-col bg-slate-800/40 rounded-lg p-4">
                 <h3 className="text-lg font-semibold text-white mb-2">Analysis Result</h3>
@@ -152,8 +94,6 @@ const VideoAnalyzer = () => {
                     )}
                 </div>
             </div>
-            <video ref={videoRef} style={{ display: 'none' }} muted playsInline />
-            <canvas ref={canvasRef} style={{ display: 'none' }} />
         </div>
     );
 };

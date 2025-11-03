@@ -2,6 +2,7 @@
   "name": "AD Master",
   "description": "A web application that simulates earning rewards by watching video and poster advertisements. Users can view a list of available ads, watch them for a set duration, and see their virtual balance increase.",
   "requestFramePermissions": [
-    "microphone"
+    "microphone",
+    "geolocation"
   ]
 }

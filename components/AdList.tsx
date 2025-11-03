@@ -1,156 +1,187 @@
-
-
-import React, { useMemo } from 'react';
+import React, { useState, useMemo } from 'react';
 import { Ad } from '../types';
 import AdCard from './AdCard';
 import AdCardSkeleton from './AdCardSkeleton';
 import { NoResultsIcon } from './icons/EmptyStateIcons';
-import { LOCATIONS } from '../data/locations';
+import FilterModal from './FilterModal';
+import { FilterIcon } from './icons/FilterIcon';
 import { LocationIcon } from './icons/LocationIcon';
-import MapView from './MapView';
-import ViewModeToggle from './ViewModeToggle';
+
+type AdvancedFilters = {
+    location: { country: string; state: string; district: string };
+    reward: { min: string; max: string };
+    duration: { min: string; max: string };
+};
 
 interface AdListProps {
-    ads: Ad[];
-    isLoading: boolean;
-    onSelectAd: (ad: Ad) => void;
-    onWatchAd: (ad: Ad) => void;
-    watchedAdIds: Set<string>;
-    locationFilters: { country: string; state: string; district: string };
-    onLocationChange: (filters: { country: string; state: string; district: string }) => void;
-    viewMode: 'list' | 'map';
-    onViewModeChange: (mode: 'list' | 'map') => void;
+  ads: Ad[];
+  isLoading: boolean;
+  onWatchAd: (ad: Ad) => void;
+  onToggleWatchlist: (adId: string) => void;
+  onReportAd: (ad: Ad) => void;
+  watchlist: string[];
+  watchedAdIds: Set<string>;
+  onAddToast: (message: string, type: 'success' | 'info' | 'error') => void;
+  advancedFilters: AdvancedFilters;
+  onApplyFilters: (filters: AdvancedFilters) => void;
+  userLocation: { lat: number; lng: number } | null;
+  onSetUserLocation: (location: { lat: number; lng: number } | null) => void;
 }
 
-const AdList: React.FC<AdListProps> = ({ 
-    ads, 
-    isLoading, 
-    onSelectAd, 
-    onWatchAd, 
-    watchedAdIds, 
-    locationFilters, 
-    onLocationChange,
-    viewMode,
-    onViewModeChange 
+const AdList: React.FC<AdListProps> = ({
+  ads,
+  isLoading,
+  onWatchAd,
+  onToggleWatchlist,
+  onReportAd,
+  watchlist,
+  watchedAdIds,
+  onAddToast,
+  advancedFilters,
+  onApplyFilters,
+  userLocation,
+  onSetUserLocation
 }) => {
-    
-    const availableStates = useMemo(() => {
-        const country = locationFilters.country;
-        if (country !== 'ALL' && country in LOCATIONS) {
-            return Object.keys(LOCATIONS[country as keyof typeof LOCATIONS]);
-        }
-        return [];
-    }, [locationFilters.country]);
+    const [isFilterModalOpen, setIsFilterModalOpen] = useState(false);
+    const [isLocating, setIsLocating] = useState(false);
 
-    const availableDistricts = useMemo(() => {
-        const { country, state } = locationFilters;
-        if (country !== 'ALL' && country in LOCATIONS && state !== 'ALL') {
-            const countryData = LOCATIONS[country as keyof typeof LOCATIONS];
-            if (state in countryData) {
-                return countryData[state as keyof typeof countryData] || [];
-            }
-        }
-        return [];
-    }, [locationFilters.country, locationFilters.state]);
+    const activeFilterCount = useMemo(() => {
+        let count = 0;
+        if (advancedFilters.location.country !== 'ALL') count++;
+        if (advancedFilters.location.state !== 'ALL') count++;
+        if (advancedFilters.location.district !== 'ALL') count++;
+        if (advancedFilters.reward.min) count++;
+        if (advancedFilters.reward.max) count++;
+        if (advancedFilters.duration.min) count++;
+        if (advancedFilters.duration.max) count++;
+        return count;
+    }, [advancedFilters]);
 
-
-    const handleFilterChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-        const { name, value } = e.target;
-        onLocationChange({
-            ...locationFilters,
-            [name]: value,
-            ...(name === 'country' && { state: 'ALL', district: 'ALL' }),
-            ...(name === 'state' && { district: 'ALL' }),
-        });
-    };
-
-    const getSelectClass = (disabled = false) =>
-        `w-full bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded-lg p-2.5 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm ${disabled ? 'opacity-50 cursor-not-allowed' : ''}`;
-
-    if (isLoading) {
-        return (
-             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                {Array.from({ length: 8 }).map((_, index) => (
-                    <AdCardSkeleton key={index} />
-                ))}
-            </div>
-        );
-    }
-
-    const renderContent = () => {
-         if (ads.length === 0) {
-            return (
-                <div className="text-center py-16 text-slate-500 dark:text-slate-400">
-                    <NoResultsIcon className="w-16 h-16 mx-auto mb-4 text-slate-400 dark:text-slate-500" />
-                    <h2 className="text-2xl font-bold text-slate-800 dark:text-white mb-2">No Ads Found</h2>
-                    <p>Try adjusting your search or filters to find what you're looking for.</p>
-                </div>
+    const handleFindNearMe = () => {
+        if (navigator.geolocation) {
+            setIsLocating(true);
+            navigator.geolocation.getCurrentPosition(
+                (position) => {
+                    const location = {
+                        lat: position.coords.latitude,
+                        lng: position.coords.longitude,
+                    };
+                    onSetUserLocation(location);
+                    setIsLocating(false);
+                    onAddToast('Showing ads within a 50km radius.', 'info');
+                },
+                (error: GeolocationPositionError) => {
+                    let errorMessage = "Could not get your location. Please check browser permissions.";
+                    switch (error.code) {
+                        case 1: // PERMISSION_DENIED
+                            errorMessage = "Location access was denied. Please enable it in your browser settings.";
+                            break;
+                        case 2: // POSITION_UNAVAILABLE
+                            errorMessage = "Location information is unavailable at the moment.";
+                            break;
+                        case 3: // TIMEOUT
+                            errorMessage = "The request to get your location timed out.";
+                            break;
+                    }
+                    console.error("Error getting user location:", `Code ${error.code}: ${error.message}`);
+                    onAddToast(errorMessage, 'error');
+                    setIsLocating(false);
+                }
             );
+        } else {
+            onAddToast("Geolocation is not supported by your browser.", 'info');
         }
-
-        if (viewMode === 'map') {
-            return <MapView ads={ads} onSelectAd={onSelectAd} />;
-        }
-        
-        return (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                {ads.map(ad => (
-                    <AdCard 
-                        key={ad.id} 
-                        ad={ad} 
-                        onSelectAd={onSelectAd}
-                        onWatchAd={onWatchAd}
-                        isWatched={watchedAdIds.has(ad.id)}
-                    />
-                ))}
-            </div>
-        )
-    }
+    };
     
+  const renderContent = () => {
+    if (isLoading) {
+      return (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+          {Array.from({ length: 8 }).map((_, i) => <AdCardSkeleton key={i} />)}
+        </div>
+      );
+    }
+    if (ads.length === 0) {
+      return (
+        <div className="text-center py-16 text-slate-500 dark:text-slate-400">
+            <NoResultsIcon className="w-16 h-16 mx-auto mb-4 text-slate-400 dark:text-slate-500" />
+            <h2 className="text-2xl font-bold text-slate-800 dark:text-white">No Ads Found</h2>
+            <p>Try adjusting your search or filter criteria.</p>
+        </div>
+      );
+    }
+
     return (
-        <>
-            <div className="mb-8 p-4 bg-white dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-xl">
-              <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center mb-4">
-                  <div className="flex items-center space-x-2 mb-4 sm:mb-0">
-                    <LocationIcon className="w-5 h-5 text-slate-500 dark:text-slate-400" />
-                    <h3 className="text-md font-semibold text-slate-800 dark:text-white">Filter by Location</h3>
-                  </div>
-                  <ViewModeToggle viewMode={viewMode} setViewMode={onViewModeChange} />
-              </div>
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                <div>
-                  <label htmlFor="country-filter" className="block mb-1 text-xs font-medium text-slate-600 dark:text-slate-300">Country</label>
-                  <select id="country-filter" name="country" value={locationFilters.country} onChange={handleFilterChange} className={getSelectClass()}>
-                    <option value="ALL">All Countries</option>
-                    {Object.keys(LOCATIONS).map(country => (
-                      <option key={country} value={country}>{country}</option>
-                    ))}
-                  </select>
-                </div>
-                <div>
-                  <label htmlFor="state-filter" className="block mb-1 text-xs font-medium text-slate-600 dark:text-slate-300">State</label>
-                  <select id="state-filter" name="state" value={locationFilters.state} onChange={handleFilterChange} className={getSelectClass(availableStates.length === 0)} disabled={availableStates.length === 0}>
-                    <option value="ALL">All States</option>
-                    {availableStates.map(state => (
-                      <option key={state} value={state}>{state}</option>
-                    ))}
-                  </select>
-                </div>
-                <div>
-                  <label htmlFor="district-filter" className="block mb-1 text-xs font-medium text-slate-600 dark:text-slate-300">District</label>
-                  <select id="district-filter" name="district" value={locationFilters.district} onChange={handleFilterChange} className={getSelectClass(availableDistricts.length === 0)} disabled={availableDistricts.length === 0}>
-                    <option value="ALL">All Districts</option>
-                    {availableDistricts.map(district => (
-                      <option key={district} value={district}>{district}</option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-            </div>
-            
-            {renderContent()}
-        </>
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 animate-fade-in">
+        {ads.map(ad => (
+          <AdCard
+            key={ad.id}
+            ad={ad}
+            onWatchAd={onWatchAd}
+            onToggleWatchlist={onToggleWatchlist}
+            onReportAd={onReportAd}
+            isInWatchlist={watchlist.includes(ad.id)}
+            isWatched={watchedAdIds.has(ad.id)}
+          />
+        ))}
+      </div>
     );
+  };
+  
+  return (
+    <section>
+        <div className="flex flex-col sm:flex-row justify-between items-center mb-6 gap-4">
+            <h2 className="text-3xl font-bold text-slate-900 dark:text-white">Available Ads</h2>
+            <div className="flex items-center space-x-2">
+                 {userLocation ? (
+                    <button 
+                        onClick={() => onSetUserLocation(null)}
+                        className="flex items-center space-x-2 py-2.5 px-3 bg-indigo-100 dark:bg-indigo-900/50 text-indigo-700 dark:text-indigo-300 font-semibold text-sm rounded-lg transition-all transform hover:scale-105 active:scale-95"
+                        aria-label="Clear location filter"
+                    >
+                        <LocationIcon className="w-4 h-4" />
+                        <span>Showing Near Me</span>
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+                    </button>
+                ) : (
+                    <button 
+                        onClick={handleFindNearMe}
+                        disabled={isLocating}
+                        className="flex items-center space-x-2 py-2.5 px-3 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 font-semibold text-sm rounded-lg transition-all transform hover:scale-105 active:scale-95 hover:bg-slate-100 dark:hover:bg-slate-700 disabled:opacity-50 disabled:cursor-wait"
+                    >
+                        <LocationIcon className="w-4 h-4" />
+                        <span>{isLocating ? 'Locating...' : 'Near Me'}</span>
+                    </button>
+                )}
+                <button
+                    onClick={() => setIsFilterModalOpen(true)}
+                    className={`relative p-2.5 rounded-lg border transition-all transform hover:scale-105 active:scale-95 ${
+                        activeFilterCount > 0
+                        ? 'bg-indigo-600 text-white border-transparent hover:bg-indigo-500'
+                        : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-700'
+                    }`}
+                    aria-label="Open filters"
+                >
+                    <FilterIcon className="w-5 h-5" />
+                    {activeFilterCount > 0 && (
+                        <span className="absolute -top-1 -right-1 block h-4 w-4 rounded-full bg-red-500 text-white text-[10px] font-medium ring-2 ring-white dark:ring-slate-950 flex items-center justify-center">
+                            {activeFilterCount}
+                        </span>
+                    )}
+                </button>
+            </div>
+        </div>
+        {renderContent()}
+        {isFilterModalOpen && (
+            <FilterModal 
+                isOpen={isFilterModalOpen}
+                onClose={() => setIsFilterModalOpen(false)}
+                onApply={onApplyFilters}
+                currentFilters={advancedFilters}
+            />
+        )}
+    </section>
+  );
 };
 
 export default AdList;

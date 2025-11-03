@@ -3,11 +3,12 @@ import { Ad, AdType } from '../types';
 import { isVideoFile } from '../utils/helpers';
 import ImageViewerModal from './ImageViewerModal';
 import { ZoomInIcon } from './icons/ZoomInIcon';
+import { StarIcon } from './icons/StarIcon';
 
 interface AdViewerModalProps {
   ad: Ad;
   onClose: () => void;
-  onComplete: (adId: string, reward: number) => void;
+  onComplete: (adId: string, reward: number, rating?: number) => void;
 }
 
 const AdViewerModal: React.FC<AdViewerModalProps> = ({ ad, onClose, onComplete }) => {
@@ -15,6 +16,18 @@ const AdViewerModal: React.FC<AdViewerModalProps> = ({ ad, onClose, onComplete }
   const [isClosing, setIsClosing] = useState(false);
   const contentRef = useRef<HTMLDivElement>(null);
   const [isImageViewerOpen, setIsImageViewerOpen] = useState(false);
+  const [videoError, setVideoError] = useState(false);
+  const [userRating, setUserRating] = useState(0);
+  const [hoverRating, setHoverRating] = useState(0);
+  const [countdown, setCountdown] = useState<number | null>(null);
+
+  const autoSubmitTimerRef = useRef<number | null>(null);
+  const countdownIntervalRef = useRef<number | null>(null);
+  const ratingRef = useRef(userRating);
+
+  useEffect(() => {
+    ratingRef.current = userRating;
+  }, [userRating]);
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -30,15 +43,45 @@ const AdViewerModal: React.FC<AdViewerModalProps> = ({ ad, onClose, onComplete }
     return () => clearInterval(timer);
   }, [ad.duration]);
 
+  useEffect(() => {
+    // Check if progress is complete and the auto-submit process hasn't started
+    if (progress >= 100 && autoSubmitTimerRef.current === null) {
+        const DURATION = 3; // 3-second grace period
+        setCountdown(DURATION);
+
+        countdownIntervalRef.current = window.setInterval(() => {
+            setCountdown(prev => (prev !== null && prev > 0) ? prev - 1 : 0);
+        }, 1000);
+
+        autoSubmitTimerRef.current = window.setTimeout(() => {
+            onComplete(ad.id, ad.reward, ratingRef.current > 0 ? ratingRef.current : undefined);
+        }, DURATION * 1000);
+    }
+    
+    // Cleanup timers when the component unmounts
+    return () => {
+        if (countdownIntervalRef.current) clearInterval(countdownIntervalRef.current);
+        if (autoSubmitTimerRef.current) clearTimeout(autoSubmitTimerRef.current);
+    };
+  }, [progress, ad.id, ad.reward, onComplete]);
+
+
+  useEffect(() => {
+    setVideoError(false);
+  }, [ad.id]);
+
   const handleClose = useCallback(() => {
     setIsClosing(true);
     setTimeout(onClose, 300); // Match animation duration
   }, [onClose]);
 
   const handleComplete = useCallback(() => {
-    onComplete(ad.id, ad.reward);
-    handleClose();
-  }, [ad.id, ad.reward, onComplete, handleClose]);
+    // Manually complete, so clear automatic timers
+    if (countdownIntervalRef.current) clearInterval(countdownIntervalRef.current);
+    if (autoSubmitTimerRef.current) clearTimeout(autoSubmitTimerRef.current);
+    
+    onComplete(ad.id, ad.reward, userRating > 0 ? userRating : undefined);
+  }, [ad.id, ad.reward, userRating, onComplete]);
 
   const handleFullScreen = () => {
     if (contentRef.current) {
@@ -77,7 +120,7 @@ const AdViewerModal: React.FC<AdViewerModalProps> = ({ ad, onClose, onComplete }
 
         <div ref={contentRef} className="relative aspect-video bg-black flex-grow overflow-hidden">
           {ad.type === AdType.VIDEO ? (
-             ad.contentUrl ? (
+             (ad.contentUrl && !videoError) ? (
                 isVideoFile(ad.contentUrl) ? (
                     <video
                         src={ad.contentUrl}
@@ -87,6 +130,7 @@ const AdViewerModal: React.FC<AdViewerModalProps> = ({ ad, onClose, onComplete }
                         playsInline
                         loop
                         title={ad.title}
+                        onError={() => setVideoError(true)}
                     />
                 ) : (
                     <iframe
@@ -116,7 +160,7 @@ const AdViewerModal: React.FC<AdViewerModalProps> = ({ ad, onClose, onComplete }
                 </div>
             </div>
           )}
-           {ad.type === AdType.VIDEO && (
+           {ad.type === AdType.VIDEO && !videoError && (
                 <button 
                     onClick={handleFullScreen}
                     className="absolute bottom-4 right-4 p-2 bg-black/50 text-white rounded-full hover:bg-black/80 transition-opacity z-10"
@@ -130,19 +174,53 @@ const AdViewerModal: React.FC<AdViewerModalProps> = ({ ad, onClose, onComplete }
         </div>
 
         <div className="p-4 border-t border-slate-200 dark:border-slate-700/80">
-          <div className="w-full bg-slate-200 dark:bg-slate-700/50 rounded-full h-2.5 mb-4">
-            <div
-              className="bg-indigo-500 h-2.5 rounded-full transition-all duration-1000 ease-linear"
-              style={{ width: `${progress}%` }}
-            ></div>
-          </div>
-          <button
-            onClick={handleComplete}
-            disabled={progress < 100}
-            className="w-full py-3 px-4 bg-indigo-600 text-white font-bold rounded-lg disabled:bg-slate-400 dark:disabled:bg-slate-600 disabled:cursor-not-allowed hover:bg-indigo-500 transition-all hover:shadow-lg hover:shadow-indigo-500/50"
-          >
-            {progress < 100 ? `Please wait... (${Math.ceil(ad.duration - (ad.duration * progress) / 100)}s)` : `Claim Reward +₹${ad.reward.toFixed(2)}`}
-          </button>
+          {progress < 100 ? (
+            <>
+              <div className="w-full bg-slate-200 dark:bg-slate-700/50 rounded-full h-2.5 mb-4">
+                <div
+                  className="bg-indigo-500 h-2.5 rounded-full transition-all duration-1000 ease-linear"
+                  style={{ width: `${progress}%` }}
+                ></div>
+              </div>
+              <button
+                disabled
+                className="w-full py-3 px-4 bg-slate-400 dark:bg-slate-600 text-white font-bold rounded-lg cursor-not-allowed"
+              >
+                {`Please wait... (${Math.ceil(ad.duration - (ad.duration * progress) / 100)}s)`}
+              </button>
+            </>
+          ) : (
+            <div className="text-center animate-fade-in">
+                <h3 className="font-bold text-lg text-slate-800 dark:text-white">How was this ad?</h3>
+                <p className="text-sm text-slate-500 dark:text-slate-400 mb-4">Your rating helps us improve.</p>
+                <div className="flex justify-center items-center space-x-2 my-4">
+                    {[1, 2, 3, 4, 5].map((star) => (
+                    <button
+                        key={star}
+                        onClick={() => setUserRating(star)}
+                        onMouseEnter={() => setHoverRating(star)}
+                        onMouseLeave={() => setHoverRating(0)}
+                        className="transform transition-transform hover:scale-125 focus:outline-none"
+                    >
+                        <StarIcon 
+                          filled={(hoverRating || userRating) >= star} 
+                          className="w-8 h-8 text-amber-400" 
+                        />
+                    </button>
+                    ))}
+                </div>
+                <button
+                    onClick={handleComplete}
+                    className="w-full py-3 px-4 bg-indigo-600 text-white font-bold rounded-lg hover:bg-indigo-500 transition-all hover:shadow-lg hover:shadow-indigo-500/50"
+                >
+                    {userRating === 0 ? `Submit & Claim +₹${ad.reward.toFixed(2)}` : `Submit ${userRating}-Star & Claim +₹${ad.reward.toFixed(2)}`}
+                </button>
+                <p className="text-xs text-slate-500 dark:text-slate-400 mt-2 h-4">
+                    {countdown !== null && countdown > 0 && `Automatically claiming in ${countdown}s...`}
+                    {countdown === 0 && `Claiming reward...`}
+                </p>
+            </div>
+          )}
         </div>
       </div>
       {isImageViewerOpen && (

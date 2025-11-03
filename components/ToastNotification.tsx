@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { ToastType } from '../types';
 import { SuccessIcon, InfoIcon } from './icons/ToastIcons';
@@ -43,7 +44,7 @@ const ToastNotification: React.FC<ToastNotificationProps> = ({ message, type, on
 
   return (
     <div
-      className={`fixed bottom-20 left-1/2 -translate-x-1/2 z-50 w-full max-w-sm p-2 transition-all duration-300 ease-in-out ${animationClasses}`}
+      className={`w-full max-w-sm p-2 transition-all duration-300 ease-in-out ${animationClasses} pointer-events-auto`}
       role="alert"
     >
         <div className={`flex items-center w-full p-4 text-white ${currentTheme.bg} rounded-lg shadow-lg`}>

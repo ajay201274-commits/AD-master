@@ -1,175 +1,107 @@
-import { BankAccount, Feedback, Transaction, TransactionType, User, Ad, TransactionStatus } from '../types';
-import { MOCK_ADS, STARTING_BALANCE } from '../constants';
+import { Ad, Feedback, LeaderboardUser, User, Transaction, TransactionStatus, TransactionType, Sentiment, UserRole } from "../types";
+import { MOCK_ADS } from "../constants";
 
-// =================================================================
-// Mock Database & LocalStorage
-// =================================================================
-
-// A helper to safely parse JSON from localStorage
-function safeJSONParse<T>(key: string, fallback: T | null): T | null {
-    try {
-        const stored = localStorage.getItem(key);
-        if (stored) {
-            return JSON.parse(stored);
-        }
-    } catch (e) {
-        console.error(`Error parsing ${key} from localStorage`, e);
-        // Clear corrupted data to prevent future errors
-        localStorage.removeItem(key);
-    }
-    return fallback;
-}
-
-let mockAds: Ad[] = safeJSONParse<Ad[]>('ads', null) || [...MOCK_ADS];
-let mockFeedback: Feedback[] = safeJSONParse<Feedback[]>('feedback', null) || [
-    { id: 'fb-001', adId: 'ad-001', userId: 'user-123', rating: 5, text: 'Great ad, very inspiring!', sentiment: 'Positive', summary: 'User found the ad inspiring.', date: new Date().toISOString() }
-];
-let mockTransactions: Transaction[] = safeJSONParse<Transaction[]>('transactions', null) || [
-    { id: 'tx-init', type: TransactionType.EARNED, status: TransactionStatus.COMPLETED, description: 'Initial account balance', amount: STARTING_BALANCE, date: new Date().toISOString() }
+// Mock data
+let mockFeedback: Feedback[] = [
+    { id: 'fb-001', adId: 'ad-001', userId: 'user-456', rating: 5, text: "Absolutely loved this tribute to Dhoni! Brought back so many memories. Great ad!", sentiment: Sentiment.POSITIVE, summary: "User loved the nostalgic tribute to cricketer MS Dhoni.", date: new Date(Date.now() - 86400000).toISOString() },
+    { id: 'fb-002', adId: 'ad-001', userId: 'user-789', rating: 4, text: "Good compilation, but could have included the 2011 world cup winning shot clearly.", sentiment: Sentiment.NEUTRAL, summary: "User found the ad good but suggested an improvement.", date: new Date(Date.now() - 172800000).toISOString() },
+    { id: 'fb-003', adId: 'ad-002', userId: 'user-123', rating: 5, text: "Amazing deals! I bought a new phone thanks to this ad. The visuals were very festive.", sentiment: Sentiment.POSITIVE, summary: "User appreciated the great deals and festive visuals.", date: new Date().toISOString() },
 ];
 
-const saveData = () => {
-  localStorage.setItem('ads', JSON.stringify(mockAds));
-  localStorage.setItem('feedback', JSON.stringify(mockFeedback));
-  localStorage.setItem('transactions', JSON.stringify(mockTransactions));
+let mockUsers: User[] = [
+    { id: 'user-123', name: 'Rohan Sharma', email: 'rohan@example.com', phone: '9876543210', profilePictureUrl: 'https://i.pravatar.cc/150?u=user-123', role: UserRole.VIEWER },
+    { id: 'user-456', name: 'Priya Patel', email: 'priya@example.com', phone: '9876543211', profilePictureUrl: 'https://i.pravatar.cc/150?u=user-456', role: UserRole.VIEWER },
+    { id: 'user-789', name: 'Amit Kumar', email: 'amit@example.com', phone: '9876543212', profilePictureUrl: 'https://i.pravatar.cc/150?u=user-789', role: UserRole.VIEWER },
+    { id: 'user-101', name: 'Sunita Devi', email: 'sunita@example.com', phone: '9876543213', profilePictureUrl: 'https://i.pravatar.cc/150?u=user-101', role: UserRole.UPLOADER },
+    { id: 'user-112', name: 'Vikram Singh', email: 'vikram@example.com', phone: '9876543214', profilePictureUrl: 'https://i.pravatar.cc/150?u=user-112', role: UserRole.VIEWER },
+    { id: 'user-999', name: 'Admin Owner', email: 'admin@example.com', phone: '9999999999', profilePictureUrl: 'https://i.pravatar.cc/150?u=user-999', role: UserRole.APP_OWNER },
+];
+
+// Mock API functions
+export const fetchAds = async (): Promise<Ad[]> => {
+    console.log("API: Fetching ads...");
+    await new Promise(resolve => setTimeout(resolve, 1000)); // Simulate network delay
+    return MOCK_ADS;
 };
 
-// Simulate API calls
-const simulateApiCall = <T,>(data: T, delay = 500): Promise<T> =>
-  new Promise(resolve => setTimeout(() => resolve(data), delay));
-
-// =================================================================
-// Ad API
-// =================================================================
-export const fetchAds = (): Promise<Ad[]> => simulateApiCall(mockAds);
-
-export const saveAd = (adData: Omit<Ad, 'rating'>): Promise<Ad> => {
-    const isEditing = !!adData.id;
-    if (isEditing) {
-        const index = mockAds.findIndex(ad => ad.id === adData.id);
-        if (index !== -1) {
-            mockAds[index] = { ...mockAds[index], ...adData };
-            saveData();
-            return simulateApiCall(mockAds[index]);
-        }
-        return Promise.reject(new Error("Ad not found"));
-    } else {
-        const newAd: Ad = {
-            ...adData,
-            id: `ad-${Date.now()}-${Math.random()}`,
-            rating: 0,
-        };
-        mockAds.unshift(newAd);
-        saveData();
-        return simulateApiCall(newAd);
-    }
+export const fetchFeedbackForAd = async (adId: string): Promise<Feedback[]> => {
+    console.log(`API: Fetching feedback for ad ${adId}...`);
+    await new Promise(resolve => setTimeout(resolve, 800));
+    return mockFeedback.filter(f => f.adId === adId);
 };
 
-export const bulkDeleteAds = (adIds: string[]): Promise<{ success: boolean }> => {
-    mockAds = mockAds.filter(ad => !adIds.includes(ad.id));
-    saveData();
-    return simulateApiCall({ success: true });
-}
-
-// =================================================================
-// Feedback API
-// =================================================================
-export const fetchFeedbackForAd = (adId: string): Promise<Feedback[]> => {
-  const adFeedback = mockFeedback.filter(f => f.adId === adId);
-  return simulateApiCall(adFeedback.sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime()), 800);
-};
-
-export const saveFeedback = (feedback: Omit<Feedback, 'id'>): Promise<Feedback> => {
-    const newFeedback: Feedback = { ...feedback, id: `fb-${Date.now()}` };
+export const saveFeedback = async (feedback: Omit<Feedback, 'id'>): Promise<Feedback> => {
+    console.log("API: Saving feedback...", feedback);
+    await new Promise(resolve => setTimeout(resolve, 500));
+    const newFeedback = { ...feedback, id: `fb-${Date.now()}` };
     mockFeedback.push(newFeedback);
-    saveData();
-    return simulateApiCall(newFeedback);
-};
-
-// =================================================================
-// User & Account API
-// =================================================================
-export const fetchUserProfile = (): Promise<User> => {
-    const user: User = {
-        id: 'user-123',
-        name: 'Rohan Sharma',
-        email: 'rohan.sharma@example.com',
-        phone: '+91 98765 43210',
-        profilePictureUrl: 'https://i.pravatar.cc/150?u=rohansharma',
-    };
-    return simulateApiCall(user);
-};
-
-export const fetchBankAccount = (): Promise<BankAccount | null> => {
-    return simulateApiCall(safeJSONParse<BankAccount>('bankAccount', null));
+    return newFeedback;
 }
 
-export const saveBankAccount = (account: BankAccount): Promise<BankAccount> => {
-    localStorage.setItem('bankAccount', JSON.stringify(account));
-    return simulateApiCall(account);
+export const fetchLeaderboardData = async (): Promise<LeaderboardUser[]> => {
+    console.log("API: Fetching leaderboard data...");
+    await new Promise(resolve => setTimeout(resolve, 1200));
+    return mockUsers.map(user => ({
+        id: user.id,
+        name: user.name,
+        profilePictureUrl: user.profilePictureUrl,
+        totalEarnings: Math.random() * 5000 + 500,
+        adsWatched: Math.floor(Math.random() * 200 + 20),
+    })).sort((a, b) => b.totalEarnings - a.totalEarnings);
+};
+
+export const fetchAllUsers = async (): Promise<User[]> => {
+    console.log("API: Fetching all users...");
+    await new Promise(resolve => setTimeout(resolve, 500));
+    // Ensure the admin user is always present, even if filtered out elsewhere
+    if (!mockUsers.find(u => u.role === UserRole.APP_OWNER)) {
+        mockUsers.push({ id: 'user-999', name: 'Admin Owner', email: 'admin@example.com', phone: '9999999999', profilePictureUrl: 'https://i.pravatar.cc/150?u=user-999', role: UserRole.APP_OWNER });
+    }
+    return mockUsers;
+};
+
+export const deleteUser = async (userId: string): Promise<{ success: boolean }> => {
+    console.log(`API: Deleting user ${userId}...`);
+    await new Promise(resolve => setTimeout(resolve, 500));
+    const initialLength = mockUsers.length;
+    mockUsers = mockUsers.filter(u => u.id !== userId);
+    return { success: mockUsers.length < initialLength };
+};
+
+
+// --- Mock Auth ---
+export const sendOtp = async (contact: string): Promise<{ success: boolean; message: string }> => {
+    console.log(`API: Sending OTP to ${contact}`);
+    await new Promise(resolve => setTimeout(resolve, 1000));
+    return { success: true, message: `An OTP has been sent to ${contact}.` };
+};
+
+export const verifyOtp = async (contact: string, otp: string): Promise<{ success: boolean; message: string }> => {
+    console.log(`API: Verifying OTP ${otp} for ${contact}`);
+    await new Promise(resolve => setTimeout(resolve, 1000));
+    if (otp === "123456") {
+        return { success: true, message: "Login successful!" };
+    }
+    return { success: false, message: "Invalid OTP. Please try again." };
+};
+
+export const loginWithEmailPassword = async (email: string, pass: string): Promise<{ success: boolean; message: string }> => {
+    console.log(`API: Logging in with ${email}`);
+    await new Promise(resolve => setTimeout(resolve, 1000));
+    if (email === 'user@example.com' && pass === 'password123') {
+        return { success: true, message: "Login successful!" };
+    }
+    return { success: false, message: "Invalid email or password." };
 }
 
-// =================================================================
-// Transactions API
-// =================================================================
-export const fetchTransactions = (): Promise<Transaction[]> => {
-    return simulateApiCall(mockTransactions.sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime()));
-};
-
-export const addTransaction = (transaction: Omit<Transaction, 'id' | 'date'>): Promise<Transaction> => {
-    const newTransaction: Transaction = {
-        ...transaction,
-        id: `tx-${Date.now()}`,
-        date: new Date().toISOString(),
-    };
-    mockTransactions.push(newTransaction);
-    saveData();
-    return simulateApiCall(newTransaction);
+export const signupWithEmailPassword = async (data: {name: string, email: string, password: string}): Promise<{ success: boolean, message: string }> => {
+    console.log(`API: Signing up ${data.email}`);
+    await new Promise(resolve => setTimeout(resolve, 1000));
+    return { success: true, message: "Account created successfully!" };
 }
 
-export const processPendingWithdrawals = (): Promise<boolean> => {
-    return new Promise(resolve => {
-        setTimeout(() => {
-            let changed = false;
-            mockTransactions.forEach(tx => {
-                if (tx.type === TransactionType.WITHDRAWAL && tx.status === TransactionStatus.PENDING) {
-                    tx.status = TransactionStatus.COMPLETED;
-                    changed = true;
-                }
-            });
-            if (changed) {
-                saveData();
-            }
-            resolve(changed);
-        }, 3000); // 3 second delay to simulate processing
-    });
-};
-
-
-// =================================================================
-// Auth APIs
-// =================================================================
-export const sendOtp = (contact: string): Promise<{ success: boolean; message: string }> => simulateApiCall({ success: true, message: `An OTP has been sent. (Hint: 123456)` });
-export const verifyOtp = (contact: string, otp: string): Promise<{ success: boolean; message: string }> => {
-    return otp === '123456' 
-        ? simulateApiCall({ success: true, message: 'Login successful!' })
-        : simulateApiCall({ success: false, message: 'Invalid OTP.' });
-};
-export const loginWithEmailPassword = (email: string, pass: string): Promise<{ success: boolean, message: string }> => {
-    return pass === 'password'
-        ? simulateApiCall({ success: true, message: 'Login successful!' })
-        : simulateApiCall({ success: false, message: 'Invalid credentials.' });
-};
-export const signupWithEmailPassword = (data: { name: string, email: string, password: string }): Promise<{ success: boolean, message: string }> => simulateApiCall({ success: true, message: 'Signup successful!' });
-export const sendPasswordResetLink = (email: string): Promise<{ success: boolean, message: string }> => simulateApiCall({ success: true, message: `A password reset link has been sent.` });
-export const updateUserProfile = (data: Partial<Omit<User, 'id'>>): Promise<{ success: boolean, user: User }> => {
-    const updatedUser: User = { id: 'user-123', name: data.name || 'Alex Doe', email: data.email || 'alex.doe@example.com', phone: data.phone || '+91 98765 43210', profilePictureUrl: 'https://i.pravatar.cc/150?u=alexdoe' };
-    return simulateApiCall({ success: true, user: updatedUser });
-}
-export const updateProfilePicture = (file: File): Promise<{ success: boolean, url: string }> => {
-    return new Promise(resolve => {
-        const reader = new FileReader();
-        reader.readAsDataURL(file);
-        reader.onload = () => resolve({ success: true, url: reader.result as string });
-    });
+export const sendPasswordResetLink = async (email: string): Promise<{ success: boolean; message: string }> => {
+    console.log(`API: Sending password reset to ${email}`);
+    await new Promise(resolve => setTimeout(resolve, 1000));
+    return { success: true, message: `If an account exists for ${email}, a reset link has been sent.` };
 }

@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { GoogleGenAI, Type } from "@google/genai";
-import { BrainIcon, SparklesIcon, Spinner } from '../icons/AIIcons';
+import { BrainIcon, SparklesIcon, Spinner } from './icons/AIIcons';
 
 interface CampaignIdea {
     title: string;

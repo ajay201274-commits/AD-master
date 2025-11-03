@@ -96,8 +96,12 @@ export const fileToDataUrl = (file: File): Promise<string> => {
     });
 };
 
-// Checks if a URL points to a direct video file.
+// Checks if a URL points to a direct video file or is a video data URL.
 export const isVideoFile = (url: string): boolean => {
+    if (!url) return false;
+    if (url.startsWith('data:')) {
+        return url.startsWith('data:video');
+    }
     try {
         const path = new URL(url).pathname;
         return /\.(mp4|webm|ogg|mov)$/i.test(path);
@@ -105,3 +109,21 @@ export const isVideoFile = (url: string): boolean => {
         return false;
     }
 };
+
+// Haversine distance calculation
+export function getDistance(lat1: number, lon1: number, lat2: number, lon2: number) {
+    const R = 6371; // Radius of the earth in km
+    const dLat = deg2rad(lat2 - lat1);
+    const dLon = deg2rad(lon2 - lon1);
+    const a =
+        Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+        Math.cos(deg2rad(lat1)) * Math.cos(deg2rad(lat2)) *
+        Math.sin(dLon / 2) * Math.sin(dLon / 2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    const d = R * c; // Distance in km
+    return d;
+}
+
+function deg2rad(deg: number) {
+    return deg * (Math.PI / 180);
+}

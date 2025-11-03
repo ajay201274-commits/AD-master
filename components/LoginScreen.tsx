@@ -1,6 +1,7 @@
 
 import React, { useState, useEffect, FormEvent } from 'react';
 import * as api from '../services/api';
+import { Logo } from './icons/Logo';
 
 interface LoginScreenProps {
   onLoginSuccess: () => void;
@@ -172,6 +173,10 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
         }
     };
 
+    const inputClass = "block w-full px-4 py-2.5 text-slate-700 dark:text-slate-200 bg-slate-100 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-600 rounded-lg focus:border-indigo-400 focus:ring-opacity-40 dark:focus:border-indigo-300 focus:outline-none focus:ring focus:ring-indigo-300 transition-colors";
+    const otpInputClass = "block w-full px-4 py-2.5 text-center tracking-[1em] text-slate-700 dark:text-slate-200 bg-slate-100 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-600 rounded-lg focus:border-indigo-400 focus:ring-opacity-40 dark:focus:border-indigo-300 focus:outline-none focus:ring focus:ring-indigo-300 transition-colors";
+    const primaryButtonClass = "w-full px-4 py-2.5 text-sm font-medium tracking-wide text-white capitalize transition-all duration-300 transform bg-indigo-600 rounded-lg hover:bg-indigo-500 focus:outline-none focus:ring focus:ring-indigo-300 focus:ring-opacity-50 disabled:bg-slate-400 dark:disabled:bg-slate-600 hover:scale-105 active:scale-95";
+
     const renderPhoneLogin = () => (
         <form onSubmit={(e: FormEvent) => { e.preventDefault(); step === 'enter-contact' ? handleSendOtpRequest(false) : handleVerifyOtp(); }}>
             <div className="space-y-4">
@@ -180,20 +185,20 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
                         <label className="block mb-2 text-sm font-medium text-slate-600 dark:text-slate-300" htmlFor="contact-phone">
                             Mobile Number
                         </label>
-                        <input id="contact-phone" className="block w-full px-4 py-2 text-slate-700 dark:text-slate-200 bg-slate-100 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-600 rounded-lg focus:border-indigo-400 focus:ring-opacity-40 dark:focus:border-indigo-300 focus:outline-none focus:ring focus:ring-indigo-300" type="tel" placeholder="e.g., 9876543210" value={contact} onChange={(e) => setContact(e.target.value)} disabled={isLoading} />
+                        <input id="contact-phone" className={inputClass} type="tel" placeholder="e.g., 9876543210" value={contact} onChange={(e) => setContact(e.target.value)} disabled={isLoading} />
                     </div>
                 ) : (
                     <div>
                         <label className="block mb-2 text-sm font-medium text-slate-600 dark:text-slate-300" htmlFor="otp">
                             One-Time Password (OTP)
                         </label>
-                        <input id="otp" className="block w-full px-4 py-2 text-center tracking-[1em] text-slate-700 dark:text-slate-200 bg-slate-100 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-600 rounded-lg focus:border-indigo-400 focus:ring-opacity-40 dark:focus:border-indigo-300 focus:outline-none focus:ring focus:ring-indigo-300" type="tel" maxLength={6} value={otp} onChange={(e) => setOtp(e.target.value.replace(/\D/g, ''))} disabled={isLoading} />
+                        <input id="otp" className={otpInputClass} type="tel" maxLength={6} value={otp} onChange={(e) => setOtp(e.target.value.replace(/\D/g, ''))} disabled={isLoading} />
                     </div>
                 )}
             </div>
 
             <div className="mt-6">
-                <button type="submit" disabled={isLoading} className="w-full px-4 py-2.5 text-sm font-medium tracking-wide text-white capitalize transition-colors duration-300 transform bg-indigo-600 rounded-lg hover:bg-indigo-500 focus:outline-none focus:ring focus:ring-indigo-300 focus:ring-opacity-50 disabled:bg-slate-400 dark:disabled:bg-slate-600">
+                <button type="submit" disabled={isLoading} className={primaryButtonClass}>
                     {isLoading ? 'Please wait...' : step === 'enter-contact' ? 'Send OTP' : 'Verify & Continue'}
                 </button>
             </div>
@@ -218,10 +223,10 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
                         <label className="block mb-2 text-sm font-medium text-slate-600 dark:text-slate-300" htmlFor="contact-email-forgot">
                             Email Address
                         </label>
-                        <input id="contact-email-forgot" className="block w-full px-4 py-2 text-slate-700 dark:text-slate-200 bg-slate-100 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-600 rounded-lg focus:border-indigo-400 focus:ring-opacity-40 dark:focus:border-indigo-300 focus:outline-none focus:ring focus:ring-indigo-300" type="email" placeholder="you@example.com" value={contact} onChange={(e) => setContact(e.target.value)} disabled={isLoading} />
+                        <input id="contact-email-forgot" className={inputClass} type="email" placeholder="you@example.com" value={contact} onChange={(e) => setContact(e.target.value)} disabled={isLoading} />
                     </div>
                     <div className="mt-6">
-                         <button type="submit" disabled={isLoading} className="w-full px-4 py-2.5 text-sm font-medium tracking-wide text-white capitalize transition-colors duration-300 transform bg-indigo-600 rounded-lg hover:bg-indigo-500 focus:outline-none focus:ring focus:ring-indigo-300 focus:ring-opacity-50 disabled:bg-slate-400 dark:disabled:bg-slate-600">
+                         <button type="submit" disabled={isLoading} className={primaryButtonClass}>
                             {isLoading ? 'Sending...' : 'Send Reset Link'}
                         </button>
                     </div>
@@ -234,7 +239,7 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
 
         return (
             <>
-                <button onClick={onLoginSuccess} className="w-full flex items-center justify-center px-4 py-2.5 border rounded-lg transition-colors duration-300 transform bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-600 text-slate-800 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700">
+                <button onClick={onLoginSuccess} className="w-full flex items-center justify-center px-4 py-2.5 border rounded-lg transition-all duration-300 transform bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-600 text-slate-800 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 hover:scale-105 active:scale-95">
                     <GoogleIcon />
                     <span className="text-sm font-semibold">Continue with Google</span>
                 </button>
@@ -251,7 +256,7 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
                                 <label className="block mb-2 text-sm font-medium text-slate-600 dark:text-slate-300" htmlFor="contact-email">
                                     Email Address
                                 </label>
-                                <input id="contact-email" className="block w-full px-4 py-2 text-slate-700 dark:text-slate-200 bg-slate-100 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-600 rounded-lg focus:border-indigo-400 focus:ring-opacity-40 dark:focus:border-indigo-300 focus:outline-none focus:ring focus:ring-indigo-300" type="email" placeholder="you@example.com" value={contact} onChange={(e) => setContact(e.target.value)} disabled={isLoading} />
+                                <input id="contact-email" className={inputClass} type="email" placeholder="you@example.com" value={contact} onChange={(e) => setContact(e.target.value)} disabled={isLoading} />
                             </div>
                              <div>
                                 <div className="flex justify-between">
@@ -260,11 +265,11 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
                                     </label>
                                     <button type="button" onClick={() => setEmailView('forgot-password')} className="text-xs text-slate-500 dark:text-slate-400 hover:underline">Forgot Password?</button>
                                 </div>
-                                <input id="password" className="block w-full px-4 py-2 text-slate-700 dark:text-slate-200 bg-slate-100 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-600 rounded-lg focus:border-indigo-400 focus:ring-opacity-40 dark:focus:border-indigo-300 focus:outline-none focus:ring focus:ring-indigo-300" type="password" placeholder="Your Password" value={password} onChange={(e) => setPassword(e.target.value)} disabled={isLoading} />
+                                <input id="password" className={inputClass} type="password" placeholder="Your Password" value={password} onChange={(e) => setPassword(e.target.value)} disabled={isLoading} />
                             </div>
                         </div>
                          <div className="mt-6">
-                            <button type="submit" disabled={isLoading} className="w-full px-4 py-2.5 text-sm font-medium tracking-wide text-white capitalize transition-colors duration-300 transform bg-indigo-600 rounded-lg hover:bg-indigo-500 focus:outline-none focus:ring focus:ring-indigo-300 focus:ring-opacity-50 disabled:bg-slate-400 dark:disabled:bg-slate-600">
+                            <button type="submit" disabled={isLoading} className={primaryButtonClass}>
                                 {isLoading ? 'Signing In...' : 'Sign In'}
                             </button>
                         </div>
@@ -276,23 +281,23 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
                                 <label className="block mb-2 text-sm font-medium text-slate-600 dark:text-slate-300" htmlFor="name">
                                     Full Name
                                 </label>
-                                <input id="name" className="block w-full px-4 py-2 text-slate-700 dark:text-slate-200 bg-slate-100 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-600 rounded-lg focus:border-indigo-400 focus:ring-opacity-40 dark:focus:border-indigo-300 focus:outline-none focus:ring focus:ring-indigo-300" type="text" placeholder="e.g., Alex Doe" value={name} onChange={(e) => setName(e.target.value)} disabled={isLoading} />
+                                <input id="name" className={inputClass} type="text" placeholder="e.g., Alex Doe" value={name} onChange={(e) => setName(e.target.value)} disabled={isLoading} />
                             </div>
                             <div>
                                 <label className="block mb-2 text-sm font-medium text-slate-600 dark:text-slate-300" htmlFor="signup-email">
                                     Email Address
                                 </label>
-                                <input id="signup-email" className="block w-full px-4 py-2 text-slate-700 dark:text-slate-200 bg-slate-100 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-600 rounded-lg focus:border-indigo-400 focus:ring-opacity-40 dark:focus:border-indigo-300 focus:outline-none focus:ring focus:ring-indigo-300" type="email" placeholder="you@example.com" value={contact} onChange={(e) => setContact(e.target.value)} disabled={isLoading} />
+                                <input id="signup-email" className={inputClass} type="email" placeholder="you@example.com" value={contact} onChange={(e) => setContact(e.target.value)} disabled={isLoading} />
                             </div>
                              <div>
                                 <label className="block mb-2 text-sm font-medium text-slate-600 dark:text-slate-300" htmlFor="signup-password">
                                     Password
                                 </label>
-                                <input id="signup-password" className="block w-full px-4 py-2 text-slate-700 dark:text-slate-200 bg-slate-100 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-600 rounded-lg focus:border-indigo-400 focus:ring-opacity-40 dark:focus:border-indigo-300 focus:outline-none focus:ring focus:ring-indigo-300" type="password" placeholder="6+ characters" value={password} onChange={(e) => setPassword(e.target.value)} disabled={isLoading} />
+                                <input id="signup-password" className={inputClass} type="password" placeholder="6+ characters" value={password} onChange={(e) => setPassword(e.target.value)} disabled={isLoading} />
                             </div>
                         </div>
                          <div className="mt-6">
-                            <button type="submit" disabled={isLoading} className="w-full px-4 py-2.5 text-sm font-medium tracking-wide text-white capitalize transition-colors duration-300 transform bg-indigo-600 rounded-lg hover:bg-indigo-500 focus:outline-none focus:ring focus:ring-indigo-300 focus:ring-opacity-50 disabled:bg-slate-400 dark:disabled:bg-slate-600">
+                            <button type="submit" disabled={isLoading} className={primaryButtonClass}>
                                 {isLoading ? 'Creating Account...' : 'Create Account'}
                             </button>
                         </div>
@@ -311,32 +316,35 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
     };
 
     return (
-        <div className="bg-slate-50 dark:bg-slate-900 min-h-screen flex items-center justify-center p-4">
-            <div className="w-full max-w-sm mx-auto overflow-hidden bg-white dark:bg-slate-800/50 rounded-lg shadow-xl border border-slate-200 dark:border-slate-700">
+        <div className="bg-slate-50 dark:bg-slate-950 min-h-screen flex items-center justify-center p-4">
+            <div className="w-full max-w-sm mx-auto overflow-hidden bg-white dark:bg-gradient-to-br dark:from-slate-800 dark:to-slate-900 rounded-2xl shadow-2xl shadow-slate-900/10 border border-slate-200 dark:border-slate-700">
                 <div className="p-8">
-                    <h1 className="text-2xl font-bold text-center text-slate-900 dark:text-white mb-2">Get Started</h1>
-                    <p className="text-center text-slate-500 dark:text-slate-400 mb-6 h-5">
-                        {info ? '' : 
-                         (loginMethod === 'phone' && step === 'enter-otp' ? 'Enter the OTP sent to your device.' : 
-                         (emailView === 'forgot-password' ? 'We’ll send you a reset link.' : 'Sign in or create an account.'))}
-                    </p>
+                    <div className="text-center mb-8">
+                        <Logo className="h-12 w-12 mx-auto" />
+                        <h1 className="text-3xl font-bold text-slate-900 dark:text-white mt-4 tracking-tighter">Welcome to AdMaster</h1>
+                        <p className="text-slate-500 dark:text-slate-400 mt-2 h-5">
+                             {info ? '' : 
+                             (loginMethod === 'phone' && step === 'enter-otp' ? 'Enter the OTP sent to your device.' : 
+                             (emailView === 'forgot-password' ? 'We’ll send you a reset link.' : 'Sign in or create an account.'))}
+                        </p>
+                    </div>
                     
-                    <div className="flex bg-slate-200 dark:bg-slate-900/50 p-1 rounded-lg mb-6">
-                        <button onClick={() => handleMethodChange('phone')} className={`w-1/2 py-2 text-sm font-semibold rounded-md transition-colors ${loginMethod === 'phone' ? 'bg-indigo-600 text-white shadow' : 'text-slate-600 dark:text-slate-300'}`}>
+                    <div className="flex bg-slate-100 dark:bg-slate-900/50 p-1 rounded-lg mb-6">
+                        <button onClick={() => handleMethodChange('phone')} className={`w-1/2 py-2 text-sm font-semibold rounded-md transition-colors ${loginMethod === 'phone' ? 'bg-white dark:bg-slate-700 text-slate-800 dark:text-white shadow-sm' : 'text-slate-600 dark:text-slate-300 hover:bg-white/50 dark:hover:bg-slate-700/50'}`}>
                             Mobile
                         </button>
-                         <button onClick={() => handleMethodChange('email')} className={`w-1/2 py-2 text-sm font-semibold rounded-md transition-colors ${loginMethod === 'email' ? 'bg-indigo-600 text-white shadow' : 'text-slate-600 dark:text-slate-300'}`}>
+                         <button onClick={() => handleMethodChange('email')} className={`w-1/2 py-2 text-sm font-semibold rounded-md transition-colors ${loginMethod === 'email' ? 'bg-white dark:bg-slate-700 text-slate-800 dark:text-white shadow-sm' : 'text-slate-600 dark:text-slate-300 hover:bg-white/50 dark:hover:bg-slate-700/50'}`}>
                             Email
                         </button>
                     </div>
 
-                    {info && <p className="mb-4 text-xs text-center text-green-600 dark:text-green-400">{info}</p>}
-                    {error && <p className="mb-4 text-xs text-center text-red-500 dark:text-red-400">{error}</p>}
+                    {info && <p className="mb-4 text-xs text-center text-green-600 dark:text-green-400 bg-green-500/10 p-2 rounded-md">{info}</p>}
+                    {error && <p className="mb-4 text-xs text-center text-red-500 dark:text-red-400 bg-red-500/10 p-2 rounded-md">{error}</p>}
                     
                     {loginMethod === 'phone' ? renderPhoneLogin() : renderEmailLogin()}
 
                      <p className="mt-8 text-xs text-slate-400 dark:text-slate-500 text-center">
-                        By continuing, you agree to our Terms of Service and Privacy Policy.
+                        By continuing, you agree to our <a href="#" className="underline">Terms of Service</a>.
                     </p>
                 </div>
             </div>

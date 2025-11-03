@@ -1,4 +1,3 @@
-
 import React, { ReactNode } from 'react';
 import { UserRole } from '../types';
 import { EarningsIcon, AdsWatchedIcon, PotentialIcon, RevenueIcon, AdCountIcon } from './icons/DashboardIcons';
@@ -28,9 +27,6 @@ const DashboardCard: React.FC<DashboardCardProps> = ({ title, value, icon, color
 
 interface DashboardProps {
   userRole: UserRole;
-  balance: number;
-  adsWatchedCount: number;
-  potentialEarnings: number;
   platformRevenue: number;
   totalAdCount: number;
   totalAdValue: number;
@@ -38,9 +34,6 @@ interface DashboardProps {
 
 const Dashboard: React.FC<DashboardProps> = ({
   userRole,
-  balance,
-  adsWatchedCount,
-  potentialEarnings,
   platformRevenue,
   totalAdCount,
   totalAdValue,
@@ -73,31 +66,7 @@ const Dashboard: React.FC<DashboardProps> = ({
     );
   }
 
-  return (
-    <div className="mb-8 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-      <DashboardCard
-        title="Current Balance"
-        value={`₹${balance.toFixed(2)}`}
-        icon={<EarningsIcon />}
-        color="bg-green-500/20 text-green-500 dark:text-green-400"
-        description="Your total available earnings"
-      />
-      <DashboardCard
-        title="Ads Watched"
-        value={adsWatchedCount}
-        icon={<AdsWatchedIcon />}
-        color="bg-blue-500/20 text-blue-500 dark:text-blue-400"
-        description="Number of ads you've completed"
-      />
-      <DashboardCard
-        title="Potential Earnings"
-        value={`₹${potentialEarnings.toFixed(2)}`}
-        icon={<PotentialIcon />}
-        color="bg-indigo-500/20 text-indigo-500 dark:text-indigo-400"
-        description="From remaining available ads"
-      />
-    </div>
-  );
+  return null;
 };
 
 export default Dashboard;

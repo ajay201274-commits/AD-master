@@ -28,7 +28,7 @@ const MyAdCard: React.FC<MyAdCardProps> = ({ ad, onEdit, onDelete, onToggleSelec
     return (
         <div 
             onClick={() => onViewDetails(ad)}
-            className="group relative bg-white dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-xl overflow-hidden shadow-sm transition-all duration-300 cursor-pointer hover:shadow-lg hover:border-slate-300 dark:hover:border-slate-600"
+            className="group relative bg-white dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-xl overflow-hidden shadow-sm transition-all duration-300 cursor-pointer hover:shadow-lg hover:border-slate-300 dark:hover:border-slate-600 hover:-translate-y-1"
         >
             <div className="relative">
                 <img src={ad.thumbnailUrl} alt={ad.title} className="w-full aspect-video object-cover" />
@@ -67,14 +67,14 @@ const MyAdCard: React.FC<MyAdCardProps> = ({ ad, onEdit, onDelete, onToggleSelec
                 <div className="flex items-center space-x-2 mt-2">
                     <button 
                         onClick={(e) => { e.stopPropagation(); onEdit(ad); }} 
-                        className="flex-1 flex items-center justify-center space-x-2 py-2 px-3 bg-slate-200 hover:bg-slate-300 text-slate-800 dark:bg-slate-700 dark:hover:bg-slate-600 dark:text-white font-bold text-sm rounded-lg transition-colors"
+                        className="flex-1 flex items-center justify-center space-x-2 py-2 px-3 bg-slate-200 hover:bg-slate-300 text-slate-800 dark:bg-slate-700 dark:hover:bg-slate-600 dark:text-white font-bold text-sm rounded-lg transition-all transform hover:scale-105 active:scale-95"
                     >
                         <EditIcon className="w-4 h-4" />
                         <span>Edit</span>
                     </button>
                      <button 
                         onClick={(e) => { e.stopPropagation(); onDelete(ad.id); }} 
-                        className="p-2 rounded-lg text-slate-500 dark:text-slate-400 hover:bg-red-500/10 hover:text-red-500 dark:hover:text-red-400 transition-colors"
+                        className="p-2 rounded-lg text-slate-500 dark:text-slate-400 hover:bg-red-500/10 hover:text-red-500 dark:hover:text-red-400 transition-all transform hover:scale-105 active:scale-95"
                     >
                         <TrashIcon className="w-5 h-5" />
                     </button>
