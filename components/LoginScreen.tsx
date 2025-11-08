@@ -321,7 +321,7 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
                 <div className="p-8">
                     <div className="text-center mb-8">
                         <Logo className="h-12 w-12 mx-auto" />
-                        <h1 className="text-3xl font-bold text-slate-900 dark:text-white mt-4 tracking-tighter">Welcome to AdMaster</h1>
+                        <h1 className="text-3xl font-bold text-slate-900 dark:text-white mt-4 tracking-tighter">Welcome to AD revenue</h1>
                         <p className="text-slate-500 dark:text-slate-400 mt-2 h-5">
                              {info ? '' : 
                              (loginMethod === 'phone' && step === 'enter-otp' ? 'Enter the OTP sent to your device.' : 

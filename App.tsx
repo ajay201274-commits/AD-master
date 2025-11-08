@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { Ad, AdCategory, AppView, BankAccount, Friend, ReportReason, ToastMessage, Transaction, TransactionStatus, TransactionType, User, UserRole, AdStatus, Conversation, Message } from './types';
 import * as api from './services/api';
-import Header from './components/Header';
+// Fix: Changed to a named import as the 'Header' component does not have a default export.
+import { Header } from './components/Header';
 import Dashboard from './components/Dashboard';
 import CategoryFilter from './components/CategoryFilter';
 import AdList from './components/AdList';
@@ -29,8 +30,8 @@ const MOCK_BANK_ACCOUNT_DATA: BankAccount = {
     upiId: 'rohan@oksbi'
 };
 const MOCK_TRANSACTIONS_DATA: Transaction[] = [
-    { id: 'tx-1', date: new Date(Date.now() - 86400000 * 2).toISOString(), description: 'Reward: Big Diwali Sale', amount: 1.75, type: TransactionType.EARNED, status: TransactionStatus.COMPLETED },
-    { id: 'tx-2', date: new Date(Date.now() - 86400000).toISOString(), description: 'Reward: Dhoni: A Tribute', amount: 2.50, type: TransactionType.EARNED, status: TransactionStatus.COMPLETED },
+    { id: 'tx-1', date: new Date(Date.now() - 86400000 * 2).toISOString(), description: 'Reward: Big Diwali Sale', amount: 1.75 * 0.8, type: TransactionType.EARNED, status: TransactionStatus.COMPLETED },
+    { id: 'tx-2', date: new Date(Date.now() - 86400000).toISOString(), description: 'Reward: Dhoni: A Tribute', amount: 2.50 * 0.8, type: TransactionType.EARNED, status: TransactionStatus.COMPLETED },
 ];
 const MOCK_FRIENDS_DATA: Friend[] = [
     { id: 'user-456', name: 'Priya Patel', profilePictureUrl: 'https://i.pravatar.cc/150?u=user-456', isOnline: true },
@@ -50,459 +51,437 @@ const MOCK_HISTORICAL_REVENUE = [
 
 const MOCK_CONVERSATIONS_DATA: Conversation[] = [
     {
-        contactId: 'user-456', // Priya Patel
+        contactId: 'user-456',
         messages: [
-            { id: 'msg-1', senderId: 'user-456', text: 'Hey, did you see the new ad about the Himalayas?', timestamp: new Date(Date.now() - 86400000 * 1.1).toISOString() },
-            { id: 'msg-2', senderId: 'user-123', text: 'Oh yeah, the travel one! Looks amazing. We should go sometime.', timestamp: new Date(Date.now() - 86400000).toISOString() },
-            { id: 'msg-3', senderId: 'user-456', text: 'Totally! Let me know when you are free.', timestamp: new Date(Date.now() - 76400000).toISOString(), isRead: false },
-        ]
+            { id: 'msg-1', senderId: 'user-123', text: 'Hey Priya! Did you see the new Dhoni tribute ad?', timestamp: new Date(Date.now() - 3600000).toISOString(), isRead: true },
+            { id: 'msg-2', senderId: 'user-456', text: 'Oh yes! It was amazing. So nostalgic.', timestamp: new Date(Date.now() - 3540000).toISOString(), isRead: true },
+        ],
     },
     {
-        contactId: 'user-789', // Amit Kumar
+        contactId: 'user-789',
         messages: [
-            { id: 'msg-4', senderId: 'user-789', text: 'Thanks for uploading that Dhoni tribute ad. It was really well made.', timestamp: new Date(Date.now() - 86400000 * 2).toISOString() },
-            { id: 'msg-5', senderId: 'user-123', text: 'Glad you liked it!', timestamp: new Date(Date.now() - 86400000 * 1.9).toISOString(), isRead: true },
-        ]
+            { id: 'msg-3', senderId: 'user-789', text: 'The Diwali sale ad is everywhere!', timestamp: new Date(Date.now() - 86400000 * 2).toISOString() },
+        ],
     },
-    {
-        contactId: 'user-101', // Sunita Devi
-        messages: []
-    }
 ];
 
+const App: React.FC = () => {
+    // --- AUTH & USER ---
+    const [isLoggedIn, setIsLoggedIn] = useState(true); // Default to logged in for dev
+    const [user, setUser] = useState<User | null>(null);
+    const [allUsers, setAllUsers] = useState<User[]>([]);
 
-function App() {
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
-  const [userRole, setUserRole] = useState<UserRole>(UserRole.VIEWER);
-  const [balance, setBalance] = useState(125.50);
-  const [ads, setAds] = useState<Ad[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  
-  // Modals state
-  const [selectedAd, setSelectedAd] = useState<Ad | null>(null);
-  const [detailedAd, setDetailedAd] = useState<Ad | null>(null);
-  const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
-  const [isAccountModalOpen, setIsAccountModalOpen] = useState(false);
-  const [isLeaderboardOpen, setIsLeaderboardOpen] = useState(false);
-  const [isAiStudioOpen, setIsAiStudioOpen] = useState(false);
-  const [isCartOpen, setIsCartOpen] = useState(false);
-  const [isFriendsOpen, setIsFriendsOpen] = useState(false);
-  const [adToEdit, setAdToEdit] = useState<Ad | null>(null);
-  const [reportingAd, setReportingAd] = useState<Ad | null>(null);
-  
-  // Filters and search
-  const [selectedCategory, setSelectedCategory] = useState<AdCategory | 'ALL'>('ALL');
-  const [searchQuery, setSearchQuery] = useState('');
-  const [advancedFilters, setAdvancedFilters] = useState({
-      location: { country: 'ALL', state: 'ALL', district: 'ALL' },
-      reward: { min: '', max: '' },
-      duration: { min: '', max: '' },
-  });
-  const [userLocation, setUserLocation] = useState<{ lat: number, lng: number } | null>(null);
-  
-  // User specific data
-  const [watchedAdIds, setWatchedAdIds] = useState<Set<string>>(new Set(['ad-002']));
-  const [watchlist, setWatchlist] = useState<string[]>(['ad-003']);
-  const [isCartAnimating, setIsCartAnimating] = useState(false);
-  const [toasts, setToasts] = useState<ToastMessage[]>([]);
-  
-  // Uploader/Owner state
-  const [userAds, setUserAds] = useState<Ad[]>([]);
-  const [allUsers, setAllUsers] = useState<User[]>([]);
-  
-  // App view
-  const [currentView, setCurrentView] = useState<AppView>(AppView.HOME);
+    // --- APP STATE ---
+    const [currentView, setCurrentView] = useState<AppView>(AppView.HOME);
+    const [isLoading, setIsLoading] = useState(true);
+    const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
 
-  // Mocked data that would come from API
-  const [userProfile, setUserProfile] = useState<User | null>(null);
-  const [bankAccount, setBankAccount] = useState<BankAccount | null>(MOCK_BANK_ACCOUNT_DATA);
-  const [transactions, setTransactions] = useState<Transaction[]>(MOCK_TRANSACTIONS_DATA);
-  const [conversations, setConversations] = useState<Conversation[]>(MOCK_CONVERSATIONS_DATA);
+    // --- ADS ---
+    const [ads, setAds] = useState<Ad[]>([]);
+    const [currentAd, setCurrentAd] = useState<Ad | null>(null);
+    const [selectedAd, setSelectedAd] = useState<Ad | null>(null);
+    const [watchedAdIds, setWatchedAdIds] = useState<Set<string>>(new Set(MOCK_TRANSACTIONS_DATA.map(tx => tx.description.includes('Dhoni') ? 'ad-001' : 'ad-002')));
 
-  const addToast = (message: string, type: ToastMessage['type']) => {
-    const newToast = { id: Date.now(), message, type };
-    setToasts(prev => [...prev, newToast]);
-    setTimeout(() => {
-      setToasts(prev => prev.filter(t => t.id !== newToast.id));
-    }, 3000);
-  };
-
-  // Fetch initial data on login
-  useEffect(() => {
-    if (isLoggedIn) {
-      setIsLoading(true);
-      Promise.all([api.fetchAds(), api.fetchAllUsers()])
-        .then(([fetchedAds, fetchedUsers]) => {
-          setAds(fetchedAds);
-          setAllUsers(fetchedUsers);
-        })
-        .catch(error => {
-          console.error("Failed to load initial app data", error);
-          addToast("Failed to load app data. Please refresh.", 'error');
-        })
-        .finally(() => {
-          setIsLoading(false);
-        });
-    }
-  }, [isLoggedIn]);
-
-  // Update user profile when role or user list changes
-  useEffect(() => {
-    if (isLoggedIn && allUsers.length > 0) {
-      const profile = allUsers.find(u => u.role === userRole) || allUsers.find(u => u.id === 'user-123') || allUsers[0];
-      setUserProfile(profile);
-    }
-  }, [isLoggedIn, userRole, allUsers]);
-
-  // Update user-specific ads when the main ad list or the user profile changes
-  useEffect(() => {
-    if (userProfile) {
-      setUserAds(ads.filter(ad => ad.uploaderId === userProfile.id));
-    }
-  }, [ads, userProfile]);
-
-  const adsForViewer = useMemo(() => ads.filter(ad => ad.status === AdStatus.APPROVED), [ads]);
-
-  const filteredAds = useMemo(() => {
-    let newFilteredAds = [...adsForViewer];
-
-    // 1. Category filter
-    if (selectedCategory !== 'ALL') {
-        newFilteredAds = newFilteredAds.filter(ad => ad.category === selectedCategory);
-    }
-    // 2. Search query filter
-    if (searchQuery) {
-        newFilteredAds = newFilteredAds.filter(ad => ad.title.toLowerCase().includes(searchQuery.toLowerCase()));
-    }
-
-    // 3. Advanced filters from modal
-    if (advancedFilters.location.country !== 'ALL') {
-        newFilteredAds = newFilteredAds.filter(ad => ad.country === advancedFilters.location.country);
-        if (advancedFilters.location.state !== 'ALL') {
-            newFilteredAds = newFilteredAds.filter(ad => ad.state === advancedFilters.location.state);
-            if (advancedFilters.location.district !== 'ALL') {
-                newFilteredAds = newFilteredAds.filter(ad => ad.district === advancedFilters.location.district);
-            }
-        }
-    }
-    if(advancedFilters.reward.min) {
-        newFilteredAds = newFilteredAds.filter(ad => ad.reward >= parseFloat(advancedFilters.reward.min));
-    }
-    if(advancedFilters.reward.max) {
-        newFilteredAds = newFilteredAds.filter(ad => ad.reward <= parseFloat(advancedFilters.reward.max));
-    }
-    if(advancedFilters.duration.min) {
-        newFilteredAds = newFilteredAds.filter(ad => ad.duration >= parseFloat(advancedFilters.duration.min));
-    }
-    if(advancedFilters.duration.max) {
-        newFilteredAds = newFilteredAds.filter(ad => ad.duration <= parseFloat(advancedFilters.duration.max));
-    }
-    
-    // 4. Geolocation filter
-    if (userLocation) {
-        newFilteredAds = newFilteredAds.filter(ad => {
-            if (ad.lat && ad.lng) {
-                const distance = getDistance(userLocation.lat, userLocation.lng, ad.lat, ad.lng);
-                return distance < 50; // 50km radius
-            }
-            return false;
-        });
-    }
-    return newFilteredAds;
-  }, [adsForViewer, selectedCategory, searchQuery, advancedFilters, userLocation]);
-
-  const handleSaveRatingAndCompleteAd = (adId: string, reward: number, rating?: number) => {
-    // Update balance and watched status
-    setBalance(prev => prev + reward);
-    setWatchedAdIds(prev => new Set(prev).add(adId));
-    setSelectedAd(null);
-    setDetailedAd(null);
-    
-    let toastMessage = `+₹${reward.toFixed(2)} claimed!`;
-    if (rating && rating > 0) {
-        toastMessage += ` Thanks for your rating.`;
-        // Update ad's average rating
-        setAds(prevAds => prevAds.map(ad => {
-            if (ad.id === adId) {
-                const currentRating = ad.rating || 0;
-                const currentRatingCount = ad.ratingCount || 0;
-                const newRatingCount = currentRatingCount + 1;
-                const newAverageRating = ((currentRating * currentRatingCount) + rating) / newRatingCount;
-                return { 
-                    ...ad, 
-                    rating: newAverageRating,
-                    ratingCount: newRatingCount 
-                };
-            }
-            return ad;
-        }));
-    }
-    addToast(toastMessage, 'success');
-  };
-
-  const handleSaveAd = (adData: Omit<Ad, 'id' | 'rating' | 'ratingCount' | 'uploaderId' | 'uploaderName'>) => {
-    setIsUploadModalOpen(false);
-    
-    if (adToEdit) {
-        // Edit logic
-        const updatedAd: Ad = { ...adToEdit, ...adData, status: AdStatus.PENDING };
-        delete updatedAd.rejectionReason; // Clear reason on re-submission
-        setAds(prev => prev.map(ad => ad.id === adToEdit.id ? updatedAd : ad));
-        setAdToEdit(null);
-        addToast(`Ad "${adData.title}" updated and sent for approval.`, 'success');
-
-    } else {
-        // Add logic
-        const newAd: Ad = { ...adData, id: `ad-${Date.now()}`, rating: 0, ratingCount: 0, uploaderId: userProfile!.id, uploaderName: userProfile!.name, status: AdStatus.PENDING };
-        setAds(prev => [newAd, ...prev]);
-        addToast(`Ad "${adData.title}" submitted for approval!`, 'success');
-    }
-  };
-
-  const handleEditAd = (ad: Ad) => {
-    setAdToEdit(ad);
-    setIsUploadModalOpen(true);
-  };
-  
-  const handleDeleteAds = (adIds: string[]) => {
-      setAds(prev => prev.filter(ad => !adIds.includes(ad.id)));
-      addToast(`${adIds.length} ad(s) deleted.`, 'info');
-  };
-  
-  const handleToggleWatchlist = useCallback((adId: string) => {
-    setWatchlist(prev => {
-        const isInWatchlist = prev.includes(adId);
-        if (isInWatchlist) {
-            return prev.filter(id => id !== adId);
-        } else {
-            setIsCartAnimating(true);
-            setTimeout(() => setIsCartAnimating(false), 500); // Animation duration
-            return [...prev, adId];
-        }
+    // --- FILTERS & SEARCH ---
+    const [selectedCategory, setSelectedCategory] = useState<AdCategory | 'ALL'>('ALL');
+    const [searchQuery, setSearchQuery] = useState('');
+    const [advancedFilters, setAdvancedFilters] = useState({
+        location: { country: 'ALL', state: 'ALL', district: 'ALL' },
+        reward: { min: '', max: '' },
+        duration: { min: '', max: '' },
     });
-  }, []);
+    
+    // --- WALLET & TRANSACTIONS ---
+    const [balance, setBalance] = useState(MOCK_TRANSACTIONS_DATA.reduce((sum, tx) => sum + (tx.type === TransactionType.EARNED ? tx.amount : 0), 0));
+    const [transactions, setTransactions] = useState<Transaction[]>(MOCK_TRANSACTIONS_DATA);
+    const [bankAccount, setBankAccount] = useState<BankAccount | null>(MOCK_BANK_ACCOUNT_DATA);
+    const [platformRevenue, setPlatformRevenue] = useState((1.75 + 2.50) * 0.2);
 
-  const handleUserRoleChange = (role: UserRole) => {
-    setUserRole(role);
-    setCurrentView(AppView.HOME); // Reset view on role change
-  };
+    // --- WATCHLIST (CART) ---
+    const [watchlist, setWatchlist] = useState<string[]>([]);
+    const [isCartAnimating, setIsCartAnimating] = useState(false);
 
-  const handleOpenReportModal = (ad: Ad) => {
-    setReportingAd(ad);
-  };
+    // --- MODALS ---
+    const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
+    const [adToEdit, setAdToEdit] = useState<Ad | null>(null);
+    const [isAccountModalOpen, setIsAccountModalOpen] = useState(false);
+    const [isCartOpen, setIsCartOpen] = useState(false);
+    const [isLeaderboardOpen, setIsLeaderboardOpen] = useState(false);
+    const [isAIStudioOpen, setIsAIStudioOpen] = useState(false);
+    const [isFriendsModalOpen, setIsFriendsModalOpen] = useState(false);
+    const [adToReport, setAdToReport] = useState<Ad | null>(null);
 
-  const handleSubmitReport = (adId: string, reason: ReportReason, details?: string) => {
-    console.log(`Reporting ad ${adId} for: ${reason}. Details: ${details || 'N/A'}`);
-    setReportingAd(null);
-    addToast('Ad reported successfully. Thank you!', 'info');
-  };
+    // --- TOASTS ---
+    const [toasts, setToasts] = useState<ToastMessage[]>([]);
+    let toastIdCounter = 0;
 
-  // --- Chat Handlers ---
-  const handleSendMessage = (contactId: string, messageText: string) => {
-    if (!userProfile) return;
+    // --- CHAT ---
+    const [conversations, setConversations] = useState<Conversation[]>(MOCK_CONVERSATIONS_DATA);
 
-    const newMessage: Message = {
-        id: `msg-${Date.now()}`,
-        senderId: userProfile.id,
-        text: messageText,
-        timestamp: new Date().toISOString(),
-        isRead: true,
+    // --- DATA FETCHING & DERIVED STATE ---
+    useEffect(() => {
+        // Mock user fetching
+        api.fetchAllUsers().then(users => {
+            setAllUsers(users);
+            setUser(users.find(u => u.id === 'user-123') || users[0]);
+        });
+
+        // Ad fetching
+        api.fetchAds().then(fetchedAds => {
+            setAds(fetchedAds);
+            setIsLoading(false);
+        });
+    }, []);
+
+    const addToast = useCallback((message: string, type: 'success' | 'info' | 'error' = 'info') => {
+        const newToast: ToastMessage = { id: toastIdCounter++, message, type };
+        setToasts(prev => [...prev, newToast]);
+        setTimeout(() => {
+            setToasts(currentToasts => currentToasts.filter(t => t.id !== newToast.id));
+        }, 3000);
+    }, []);
+
+    const handleCompleteAd = useCallback((adId: string, reward: number, rating?: number) => {
+        const ad = ads.find(a => a.id === adId);
+        if (ad && !watchedAdIds.has(adId)) {
+            const userShare = reward * 0.8;
+            const platformShare = reward * 0.2;
+
+            setBalance(prev => prev + userShare);
+            setPlatformRevenue(prev => prev + platformShare);
+            setWatchedAdIds(prev => new Set(prev).add(adId));
+
+            const newTransaction: Transaction = {
+                id: `tx-${Date.now()}`,
+                date: new Date().toISOString(),
+                description: `Reward: ${ad.title}`,
+                amount: userShare,
+                type: TransactionType.EARNED,
+                status: TransactionStatus.COMPLETED,
+            };
+            setTransactions(prev => [newTransaction, ...prev]);
+            
+            if (rating) {
+                // Logic to save feedback if provided
+                // This is a placeholder for now
+                console.log(`Ad ${adId} rated ${rating} stars.`);
+            }
+
+            addToast(`+₹${userShare.toFixed(2)} added to your balance!`, 'success');
+        }
+        setCurrentAd(null);
+    }, [ads, watchedAdIds, addToast]);
+    
+     const filteredAds = useMemo(() => {
+        return ads
+            .filter(ad => ad.status === AdStatus.APPROVED)
+            .filter(ad => selectedCategory === 'ALL' || ad.category === selectedCategory)
+            .filter(ad => ad.title.toLowerCase().includes(searchQuery.toLowerCase()) || ad.description.toLowerCase().includes(searchQuery.toLowerCase()))
+            .filter(ad => {
+                const { location, reward, duration } = advancedFilters;
+                if (location.country !== 'ALL' && ad.country !== location.country) return false;
+                if (location.state !== 'ALL' && ad.state !== location.state) return false;
+                if (location.district !== 'ALL' && ad.district !== location.district) return false;
+                if (reward.min && ad.reward < parseFloat(reward.min)) return false;
+                if (reward.max && ad.reward > parseFloat(reward.max)) return false;
+                if (duration.min && ad.duration < parseFloat(duration.min)) return false;
+                if (duration.max && ad.duration > parseFloat(duration.max)) return false;
+                return true;
+            })
+            .filter(ad => {
+                if (!userLocation || !ad.lat || !ad.lng) return true;
+                const distance = getDistance(userLocation.lat, userLocation.lng, ad.lat, ad.lng);
+                return distance <= 50; // 50km radius
+            });
+    }, [ads, selectedCategory, searchQuery, advancedFilters, userLocation]);
+
+    const userAds = useMemo(() => {
+        if (!user) return [];
+        return ads.filter(ad => ad.uploaderId === user.id);
+    }, [ads, user]);
+
+    const watchlistAds = useMemo(() => {
+        return ads.filter(ad => watchlist.includes(ad.id));
+    }, [ads, watchlist]);
+    
+    // --- HANDLERS ---
+    const handleLogout = () => {
+        setIsLoggedIn(false);
+        setUser(null);
     };
 
-    setConversations(prevConvos => {
-        const newConvos = [...prevConvos];
-        const convoIndex = newConvos.findIndex(c => c.contactId === contactId);
-
-        if (convoIndex > -1) {
-            newConvos[convoIndex].messages.push(newMessage);
-        } else {
-            newConvos.push({ contactId: contactId, messages: [newMessage] });
+    const handleUserRoleChangeApp = (role: UserRole) => {
+        if (user) {
+            setUser({ ...user, role });
+            setCurrentView(AppView.HOME); // Reset view on role change
         }
-        return newConvos;
-    });
+    };
+    
+    const handleSaveAd = (adData: Omit<Ad, 'id' | 'rating' | 'ratingCount' | 'uploaderId' | 'uploaderName'>) => {
+        if (!user) return;
+        
+        setIsLoading(true);
 
-    // Simulate reply
-    setTimeout(() => {
-        const replyMessage: Message = {
-            id: `msg-${Date.now() + 1}`,
-            senderId: contactId,
-            text: `Thanks for your message! I'll get back to you soon.`,
+        setTimeout(() => { // Simulate API call
+            if(adToEdit) {
+                 setAds(prev => prev.map(ad => ad.id === adToEdit.id ? { ...ad, ...adData, status: user.role === UserRole.APP_OWNER ? AdStatus.APPROVED : AdStatus.PENDING } : ad));
+                 addToast('Ad updated successfully!', 'success');
+            } else {
+                 const newAd: Ad = {
+                    ...adData,
+                    id: `ad-${Date.now()}`,
+                    rating: 0,
+                    ratingCount: 0,
+                    uploaderId: user.id,
+                    uploaderName: user.name,
+                    status: user.role === UserRole.APP_OWNER ? AdStatus.APPROVED : AdStatus.PENDING,
+                };
+                setAds(prev => [newAd, ...prev]);
+                addToast('Ad submitted for review!', 'success');
+            }
+            setIsLoading(false);
+            setIsUploadModalOpen(false);
+            setAdToEdit(null);
+        }, 1500);
+    };
+
+    const handleEditAd = (ad: Ad) => {
+        setAdToEdit(ad);
+        setIsUploadModalOpen(true);
+    };
+
+    const handleDeleteAds = (adIds: string[]) => {
+        setAds(prev => prev.filter(ad => !adIds.includes(ad.id)));
+        addToast(`${adIds.length} ad(s) deleted.`, 'info');
+    };
+
+    const handleToggleWatchlist = (adId: string) => {
+        setWatchlist(prev => {
+            if (prev.includes(adId)) {
+                return prev.filter(id => id !== adId);
+            } else {
+                setIsCartAnimating(true);
+                setTimeout(() => setIsCartAnimating(false), 500);
+                addToast('Added to watchlist!', 'success');
+                return [...prev, adId];
+            }
+        });
+    };
+    
+    const handleReportAd = (ad: Ad) => {
+        setAdToReport(ad);
+    };
+
+    const handleReportSubmit = (adId: string, reason: ReportReason, details?: string) => {
+        console.log(`Reporting ad ${adId} for ${reason}: ${details}`);
+        setAdToReport(null);
+        addToast('Ad reported. Thank you for your feedback.', 'success');
+    };
+
+    // --- Admin Handlers ---
+    const handleAdStatusChange = (adId: string, status: AdStatus, reason?: string) => {
+        setAds(prev => prev.map(ad => ad.id === adId ? { ...ad, status, rejectionReason: reason } : ad));
+    };
+
+    const handleUserRoleChange = (userId: string, role: UserRole) => {
+         setAllUsers(prev => prev.map(u => u.id === userId ? { ...u, role } : u));
+    };
+
+    const handleDeleteUser = (userToDelete: User) => {
+        api.deleteUser(userToDelete.id).then(res => {
+            if (res.success) {
+                setAllUsers(prev => prev.filter(u => u.id !== userToDelete.id));
+                addToast(`User ${userToDelete.name} has been deleted.`, 'success');
+            } else {
+                addToast(`Failed to delete user.`, 'error');
+            }
+        });
+    };
+    
+    const handlePreviewAd = (ad: Ad) => {
+        setCurrentAd(ad);
+    };
+
+    // --- Chat Handlers ---
+    const handleSendMessage = (contactId: string, messageText: string) => {
+        if (!user) return;
+        
+        const newMessage: Message = {
+            id: `msg-${Date.now()}`,
+            senderId: user.id,
+            text: messageText,
             timestamp: new Date().toISOString(),
             isRead: false,
         };
-        setConversations(prevConvos => {
-            const newConvos = [...prevConvos];
-            const convoIndex = newConvos.findIndex(c => c.contactId === contactId);
-            if (convoIndex > -1) {
-                newConvos[convoIndex].messages.push(replyMessage);
-            }
-            return newConvos;
-        });
-    }, 1500);
-  };
-
-  const handleMarkAsRead = (contactId: string) => {
-    setConversations(prevConvos => 
-        prevConvos.map(convo => {
-            if (convo.contactId === contactId) {
-                return {
-                    ...convo,
-                    messages: convo.messages.map(msg => 
-                        msg.senderId === contactId ? { ...msg, isRead: true } : msg
-                    )
-                };
-            }
-            return convo;
-        })
-    );
-  };
-
-  // --- Admin Handlers ---
-  const handleAdStatusChange = (adId: string, status: AdStatus, reason?: string) => {
-      setAds(prevAds => prevAds.map(ad => {
-        if (ad.id === adId) {
-            const updatedAd: Ad = { ...ad, status };
-            if (status === AdStatus.REJECTED) {
-                updatedAd.rejectionReason = reason;
+        
+        setConversations(prev => {
+            const convoIndex = prev.findIndex(c => c.contactId === contactId);
+            if(convoIndex > -1) {
+                const newConvos = [...prev];
+                newConvos[convoIndex].messages.push(newMessage);
+                return newConvos;
             } else {
-                delete updatedAd.rejectionReason;
+                return [...prev, { contactId, messages: [newMessage] }];
             }
-            return updatedAd;
-        }
-        return ad;
-    }));
-      addToast(`Ad status updated to ${status}.`, 'info');
-  };
+        });
+    };
+    
+    const handleMarkAsRead = (contactId: string) => {
+        setConversations(prev => {
+            return prev.map(convo => {
+                if (convo.contactId === contactId) {
+                    return {
+                        ...convo,
+                        messages: convo.messages.map(msg => ({ ...msg, isRead: true })),
+                    };
+                }
+                return convo;
+            });
+        });
+    };
 
-  const handleAdminDeleteAd = (adId: string) => {
-      setAds(prevAds => prevAds.filter(ad => ad.id !== adId));
-      addToast(`Ad has been permanently deleted.`, 'info');
-  };
-
-  const handleAdminUserRoleChange = (userId: string, role: UserRole) => {
-      setAllUsers(prevUsers => prevUsers.map(u => u.id === userId ? { ...u, role } : u));
-      addToast(`User role updated.`, 'info');
-  }
-
-  const handleAdminDeleteUser = async (user: User) => {
-    if(!user) return;
-    const { success } = await api.deleteUser(user.id);
-    if(success) {
-      setAllUsers(prev => prev.filter(u => u.id !== user.id));
-      addToast(`User "${user.name}" has been deleted.`, 'info');
-    } else {
-      addToast(`Failed to delete user.`, 'error');
+    if (!isLoggedIn) {
+        return <LoginScreen onLoginSuccess={() => setIsLoggedIn(true)} />;
     }
-  }
-
-
-  if (!isLoggedIn) {
-      return <LoginScreen onLoginSuccess={() => setIsLoggedIn(true)} />;
-  }
-  
-  const totalAdValue = ads.reduce((sum, ad) => sum + ad.reward, 0);
-  const platformRevenue = totalAdValue * 0.1; // Mock 10% commission
-
-  const renderCurrentView = () => {
-    if (userRole === UserRole.APP_OWNER) {
-        return <AdminPanel
-            ads={ads}
-            users={allUsers}
-            platformRevenue={platformRevenue}
-            historicalRevenue={MOCK_HISTORICAL_REVENUE}
-            onAdStatusChange={handleAdStatusChange}
-            onDeleteAd={handleAdminDeleteAd}
-            onUserRoleChange={handleAdminUserRoleChange}
-            onDeleteUser={handleAdminDeleteUser}
-            onPreviewAd={setDetailedAd}
-        />
+    
+    if (!user) {
+        return <div className="flex items-center justify-center h-screen bg-slate-50 dark:bg-slate-950"><p>Loading...</p></div>
     }
 
-    switch(currentView) {
-        case AppView.HOME:
-            return <AdList
-                ads={filteredAds}
-                isLoading={isLoading}
-                onWatchAd={(ad) => setSelectedAd(ad)}
-                onToggleWatchlist={handleToggleWatchlist}
-                onReportAd={handleOpenReportModal}
-                watchlist={watchlist}
-                watchedAdIds={watchedAdIds}
-                onAddToast={addToast}
-                advancedFilters={advancedFilters}
-                onApplyFilters={setAdvancedFilters}
-                userLocation={userLocation}
-                onSetUserLocation={setUserLocation}
-            />;
-        case AppView.MY_ADS:
-            return <MyAds 
-                userAds={userAds} 
-                onEditAd={handleEditAd} 
-                onDeleteAds={handleDeleteAds}
-                onUploadClick={() => setIsUploadModalOpen(true)}
-                onSelectAd={setDetailedAd}
-                watchedAdIds={watchedAdIds}
+    return (
+        <div className="min-h-screen bg-slate-50 dark:bg-slate-950">
+            <Header 
+                userRole={user.role}
+                onUserRoleChange={handleUserRoleChangeApp}
+                onUploadClick={() => { setAdToEdit(null); setIsUploadModalOpen(true); }}
+                onLogout={handleLogout}
+                searchQuery={searchQuery}
+                onSearchChange={setSearchQuery}
+                onAiStudioClick={() => setIsAIStudioOpen(true)}
             />
-        default:
-            return null;
-    }
-  }
+            
+            <main className="container mx-auto px-4 py-8 pb-24">
+                {user.role === UserRole.APP_OWNER ? (
+                    <AdminPanel
+                        ads={ads}
+                        users={allUsers}
+                        platformRevenue={platformRevenue}
+                        historicalRevenue={MOCK_HISTORICAL_REVENUE}
+                        onAdStatusChange={handleAdStatusChange}
+                        onDeleteAd={(adId) => handleDeleteAds([adId])}
+                        onUserRoleChange={handleUserRoleChange}
+                        onDeleteUser={handleDeleteUser}
+                        onPreviewAd={handlePreviewAd}
+                    />
+                ) : (
+                    // VIEWER AND UPLOADER VIEW
+                    <>
+                        {currentView === AppView.HOME && (
+                            <>
+                            <CategoryFilter selectedCategory={selectedCategory} onSelectCategory={setSelectedCategory} />
+                            <AdList 
+                                ads={filteredAds}
+                                isLoading={isLoading}
+                                onWatchAd={ad => setCurrentAd(ad)}
+                                onToggleWatchlist={handleToggleWatchlist}
+                                onReportAd={handleReportAd}
+                                watchlist={watchlist}
+                                watchedAdIds={watchedAdIds}
+                                onAddToast={addToast}
+                                advancedFilters={advancedFilters}
+                                onApplyFilters={setAdvancedFilters}
+                                userLocation={userLocation}
+                                onSetUserLocation={setUserLocation}
+                            />
+                            </>
+                        )}
+                        {currentView === AppView.MY_ADS && (
+                            <MyAds
+                                userAds={userAds}
+                                onEditAd={handleEditAd}
+                                onDeleteAds={handleDeleteAds}
+                                onUploadClick={() => { setAdToEdit(null); setIsUploadModalOpen(true); }}
+                                onSelectAd={ad => setSelectedAd(ad)}
+                                watchedAdIds={watchedAdIds}
+                            />
+                        )}
+                    </>
+                )}
+            </main>
 
-  const watchlistAds = ads.filter(ad => watchlist.includes(ad.id));
+             {user.role !== UserRole.APP_OWNER && (
+                <BottomNavBar 
+                    onAccountClick={() => setIsAccountModalOpen(true)}
+                    onFriendsClick={() => setIsFriendsModalOpen(true)}
+                    onCartClick={() => setIsCartOpen(true)}
+                    cartItemCount={watchlist.length}
+                    isCartAnimating={isCartAnimating}
+                    currentView={currentView}
+                    onNavigate={setCurrentView}
+                    userRole={user.role}
+                />
+            )}
 
-  return (
-    <div className="bg-slate-50 dark:bg-slate-950 min-h-screen font-sans text-slate-800 dark:text-slate-200 transition-colors">
-        <Header 
-            userRole={userRole} 
-            onUserRoleChange={handleUserRoleChange}
-            onUploadClick={() => setIsUploadModalOpen(true)}
-            onLogout={() => setIsLoggedIn(false)}
-            searchQuery={searchQuery}
-            onSearchChange={setSearchQuery}
-            onAiStudioClick={() => setIsAiStudioOpen(true)}
-        />
-        
-        <main className="container mx-auto p-4 pb-24">
-            {userRole === UserRole.APP_OWNER && <Dashboard 
-                userRole={userRole}
-                platformRevenue={platformRevenue}
-                totalAdCount={ads.length}
-                totalAdValue={totalAdValue}
-            />}
-            {userRole !== UserRole.APP_OWNER && currentView === AppView.HOME && <CategoryFilter selectedCategory={selectedCategory} onSelectCategory={setSelectedCategory} />}
-            {renderCurrentView()}
-        </main>
-        
-        {userRole !== UserRole.APP_OWNER && <BottomNavBar 
-            onAccountClick={() => setIsAccountModalOpen(true)}
-            onFriendsClick={() => setIsFriendsOpen(true)}
-            onCartClick={() => setIsCartOpen(true)}
-            cartItemCount={watchlist.length}
-            isCartAnimating={isCartAnimating}
-            currentView={currentView}
-            onNavigate={setCurrentView}
-            userRole={userRole}
-        />}
+            {/* --- Modals --- */}
+            {currentAd && (
+                <AdViewerModal
+                    ad={currentAd}
+                    onClose={() => setCurrentAd(null)}
+                    onComplete={handleCompleteAd}
+                    isPreview={user.role === UserRole.APP_OWNER}
+                />
+            )}
+            {isUploadModalOpen && (
+                <UploadAdModal
+                    onClose={() => { setIsUploadModalOpen(false); setAdToEdit(null); }}
+                    onSave={handleSaveAd}
+                    isLoading={false}
+                    userRole={user.role}
+                    error={null}
+                    adToEdit={adToEdit}
+                />
+            )}
+            {isAccountModalOpen && (
+                <AccountModal
+                    userRole={user.role}
+                    balance={balance}
+                    bankAccount={bankAccount}
+                    transactions={transactions}
+                    userProfile={user}
+                    onClose={() => setIsAccountModalOpen(false)}
+                    onAddFunds={() => {}}
+                    onWithdraw={() => {}}
+                    onSavePaymentDetails={(details) => setBankAccount(prev => ({...(prev || MOCK_BANK_ACCOUNT_DATA), ...details}))}
+                    onSaveProfile={async (data, file) => {
+                        console.log("Saving profile", data, file);
+                        if(user) setUser({...user, ...data});
+                        addToast("Profile updated successfully!", "success");
+                    }}
+                />
+            )}
+            {selectedAd && <AdDetail ad={selectedAd} onClose={() => setSelectedAd(null)} onReportAd={handleReportAd} userRole={user.role} />}
+            {isCartOpen && <CartModal isOpen={isCartOpen} onClose={() => setIsCartOpen(false)} watchlist={watchlistAds} onWatchAd={(ad) => { setIsCartOpen(false); setCurrentAd(ad); }} onRemoveFromWatchlist={(adId) => setWatchlist(prev => prev.filter(id => id !== adId))} />}
+            {isLeaderboardOpen && <LeaderboardModal onClose={() => setIsLeaderboardOpen(false)} />}
+            {isAIStudioOpen && <AIStudioModal onClose={() => setIsAIStudioOpen(false)} />}
+            {isFriendsModalOpen && <FriendsModal friends={MOCK_FRIENDS_DATA} onClose={() => setIsFriendsModalOpen(false)} onAddToast={addToast} currentUser={user} conversations={conversations} onSendMessage={handleSendMessage} onMarkAsRead={handleMarkAsRead} />}
+            {adToReport && <ReportAdModal ad={adToReport} onClose={() => setAdToReport(null)} onSubmit={handleReportSubmit} />}
 
-        {/* Modals */}
-        {selectedAd && <AdViewerModal ad={selectedAd} onClose={() => setSelectedAd(null)} onComplete={handleSaveRatingAndCompleteAd} />}
-        {detailedAd && <AdDetail ad={detailedAd} onClose={() => setDetailedAd(null)} userRole={userRole} onReportAd={handleOpenReportModal} />}
-        {isUploadModalOpen && <UploadAdModal onClose={() => {setIsUploadModalOpen(false); setAdToEdit(null)}} onSave={handleSaveAd} isLoading={false} userRole={userRole} error={null} adToEdit={adToEdit} />}
-        {isAccountModalOpen && userProfile && <AccountModal userRole={userRole} balance={balance} bankAccount={bankAccount} transactions={transactions} userProfile={userProfile} onClose={() => setIsAccountModalOpen(false)} onAddFunds={(amount) => setBalance(b => b + amount)} onWithdraw={(amount) => setBalance(b => b - amount)} onSavePaymentDetails={(details) => setBankAccount(p => ({...p, ...details} as BankAccount))} onSaveProfile={async () => {}} />}
-        {isCartOpen && <CartModal isOpen={isCartOpen} onClose={() => setIsCartOpen(false)} watchlist={watchlistAds} onWatchAd={(ad) => {setIsCartOpen(false); setSelectedAd(ad)}} onRemoveFromWatchlist={handleToggleWatchlist} />}
-        {isLeaderboardOpen && <LeaderboardModal onClose={() => setIsLeaderboardOpen(false)} />}
-        {isAiStudioOpen && <AIStudioModal onClose={() => setIsAiStudioOpen(false)} />}
-        {isFriendsOpen && userProfile && <FriendsModal friends={MOCK_FRIENDS_DATA} onClose={() => setIsFriendsOpen(false)} onAddToast={addToast} currentUser={userProfile} conversations={conversations} onSendMessage={handleSendMessage} onMarkAsRead={handleMarkAsRead} />}
-        {reportingAd && <ReportAdModal ad={reportingAd} onClose={() => setReportingAd(null)} onSubmit={handleSubmitReport} />}
-        
-        {/* Toasts */}
-        <div className="fixed bottom-24 w-full flex flex-col items-center space-y-2 z-50 pointer-events-none">
-            {toasts.map(toast => (
-                <ToastNotification key={toast.id} message={toast.message} type={toast.type} onClose={() => setToasts(prev => prev.filter(t => t.id !== toast.id))} />
-            ))}
+
+             {/* Toast Container */}
+            <div aria-live="assertive" className="fixed inset-0 flex flex-col items-end px-4 py-6 pointer-events-none sm:p-6 sm:items-end z-[100]">
+                <div className="w-full max-w-sm space-y-2">
+                {toasts.map(toast => (
+                    <ToastNotification
+                        key={toast.id}
+                        message={toast.message}
+                        type={toast.type}
+                        onClose={() => setToasts(currentToasts => currentToasts.filter(t => t.id !== toast.id))}
+                    />
+                ))}
+                </div>
+            </div>
         </div>
-    </div>
-  );
+    );
 }
 
 export default App;

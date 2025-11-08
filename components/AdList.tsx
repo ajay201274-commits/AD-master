@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { Ad } from '../types';
 import AdCard from './AdCard';
 import AdCardSkeleton from './AdCardSkeleton';
@@ -28,6 +28,8 @@ interface AdListProps {
   onSetUserLocation: (location: { lat: number; lng: number } | null) => void;
 }
 
+const ADS_PER_PAGE = 8;
+
 const AdList: React.FC<AdListProps> = ({
   ads,
   isLoading,
@@ -44,6 +46,57 @@ const AdList: React.FC<AdListProps> = ({
 }) => {
     const [isFilterModalOpen, setIsFilterModalOpen] = useState(false);
     const [isLocating, setIsLocating] = useState(false);
+    
+    // State for infinite scroll
+    const [displayedAds, setDisplayedAds] = useState<Ad[]>([]);
+    const [page, setPage] = useState(1);
+    const [hasMore, setHasMore] = useState(true);
+    const [isFetchingMore, setIsFetchingMore] = useState(false);
+
+    // Reset and load first page when the source ads (from filters) change
+    useEffect(() => {
+        const firstPageAds = ads.slice(0, ADS_PER_PAGE);
+        setDisplayedAds(firstPageAds);
+        setPage(1);
+        setHasMore(ads.length > ADS_PER_PAGE);
+    }, [ads]);
+    
+    const loadMoreAds = useCallback(() => {
+        if (isFetchingMore || !hasMore) return;
+
+        setIsFetchingMore(true);
+
+        // Simulate network delay for fetching more data
+        setTimeout(() => {
+            const nextPage = page + 1;
+            const newAds = ads.slice(page * ADS_PER_PAGE, nextPage * ADS_PER_PAGE);
+
+            if (newAds.length > 0) {
+                setDisplayedAds(prevAds => [...prevAds, ...newAds]);
+                setPage(nextPage);
+            }
+            
+            // Check if there are any more ads left after this fetch
+            if ((page * ADS_PER_PAGE) + newAds.length >= ads.length) {
+                setHasMore(false);
+            }
+
+            setIsFetchingMore(false);
+        }, 1000);
+    }, [isFetchingMore, hasMore, page, ads]);
+
+    const handleScroll = useCallback(() => {
+        // Trigger loadMoreAds when user is 200px from the bottom
+        if (window.innerHeight + document.documentElement.scrollTop < document.documentElement.offsetHeight - 200 || isFetchingMore) {
+            return;
+        }
+        loadMoreAds();
+    }, [loadMoreAds, isFetchingMore]);
+
+    useEffect(() => {
+        window.addEventListener('scroll', handleScroll);
+        return () => window.removeEventListener('scroll', handleScroll);
+    }, [handleScroll]);
 
     const activeFilterCount = useMemo(() => {
         let count = 0;
@@ -97,7 +150,7 @@ const AdList: React.FC<AdListProps> = ({
     if (isLoading) {
       return (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-          {Array.from({ length: 8 }).map((_, i) => <AdCardSkeleton key={i} />)}
+          {Array.from({ length: ADS_PER_PAGE }).map((_, i) => <AdCardSkeleton key={i} />)}
         </div>
       );
     }
@@ -112,19 +165,33 @@ const AdList: React.FC<AdListProps> = ({
     }
 
     return (
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 animate-fade-in">
-        {ads.map(ad => (
-          <AdCard
-            key={ad.id}
-            ad={ad}
-            onWatchAd={onWatchAd}
-            onToggleWatchlist={onToggleWatchlist}
-            onReportAd={onReportAd}
-            isInWatchlist={watchlist.includes(ad.id)}
-            isWatched={watchedAdIds.has(ad.id)}
-          />
-        ))}
-      </div>
+      <>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 animate-fade-in">
+          {displayedAds.map(ad => (
+            <AdCard
+              key={ad.id}
+              ad={ad}
+              onWatchAd={onWatchAd}
+              onToggleWatchlist={onToggleWatchlist}
+              onReportAd={onReportAd}
+              isInWatchlist={watchlist.includes(ad.id)}
+              isWatched={watchedAdIds.has(ad.id)}
+            />
+          ))}
+        </div>
+
+        {isFetchingMore && (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 mt-6">
+                {Array.from({ length: 4 }).map((_, i) => <AdCardSkeleton key={`sk-${i}`} />)}
+            </div>
+        )}
+        
+        {!hasMore && displayedAds.length > 0 && (
+            <div className="text-center py-10 text-slate-500 dark:text-slate-400">
+                <p className="font-semibold">You've reached the end!</p>
+            </div>
+        )}
+      </>
     );
   };
   

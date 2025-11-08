@@ -82,7 +82,7 @@ const UploadAdModal: React.FC<UploadAdModalProps> = ({ onClose, onSave, isLoadin
   }, [formData.country]);
 
   useEffect(() => {
-    if (formData.country && formData.state && formData.country in LOCATIONS && formData.state in LOCATIONS[formData.country as keyof typeof LOCATIONS]) {
+    if (formData.country && formData.state && formData.state !== 'ALL' && formData.country in LOCATIONS && formData.state in LOCATIONS[formData.country as keyof typeof LOCATIONS]) {
       setDistricts(LOCATIONS[formData.country as keyof typeof LOCATIONS][formData.state as keyof typeof LOCATIONS[keyof typeof LOCATIONS]] || []);
     } else {
       setDistricts([]);
@@ -180,7 +180,7 @@ const { getRootProps: getThumbnailRootProps, getInputProps: getThumbnailInputPro
     if (!formData.description) newErrors.description = "Description is required.";
     if (!formData.reward || formData.reward <= 0) newErrors.reward = "Reward must be a positive number.";
     if (!formData.duration || formData.duration <= 0) newErrors.duration = "Duration must be a positive number.";
-    if (!formData.country || !formData.state || !formData.district) newErrors.country = "Location is required.";
+    if (!formData.country) newErrors.country = "Country is required.";
 
     if (contentSource === 'url' && !formData.contentUrl) {
       newErrors.contentUrl = "Content URL is required.";
@@ -435,9 +435,24 @@ const { getRootProps: getThumbnailRootProps, getInputProps: getThumbnailInputPro
                   <span>Target Location</span>
               </label>
                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-                  <select name="country" value={formData.country} onChange={(e) => {setFormData(p => ({...p, country: e.target.value, state: '', district: ''}))}} className={getInputClass('country')}><option value="">Select Country</option>{Object.keys(LOCATIONS).map(c => <option key={c} value={c}>{c}</option>)}</select>
-                  <select name="state" value={formData.state} onChange={(e) => {setFormData(p => ({...p, state: e.target.value, district: ''}))}} className={getInputClass('country')} disabled={!states.length}><option value="">Select State</option>{states.map(s => <option key={s} value={s}>{s}</option>)}</select>
-                  <select name="district" value={formData.district} onChange={handleChange} className={getInputClass('country')} disabled={!districts.length}><option value="">Select District</option>{districts.map(d => <option key={d} value={d}>{d}</option>)}</select>
+                  <select name="country" value={formData.country} onChange={(e) => {
+                      const newCountry = e.target.value;
+                      setFormData(p => ({...p, country: newCountry, state: newCountry ? 'ALL' : '', district: newCountry ? 'ALL' : ''}))
+                  }} className={getInputClass('country')}>
+                      <option value="">Select Country</option>
+                      {Object.keys(LOCATIONS).map(c => <option key={c} value={c}>{c}</option>)}
+                  </select>
+                  <select name="state" value={formData.state} onChange={(e) => {
+                      const newState = e.target.value;
+                      setFormData(p => ({...p, state: newState, district: 'ALL' }))
+                  }} className={getInputClass('country')} disabled={!states.length}>
+                      <option value="ALL">All States</option>
+                      {states.map(s => <option key={s} value={s}>{s}</option>)}
+                  </select>
+                  <select name="district" value={formData.district} onChange={handleChange} className={getInputClass('country')} disabled={!districts.length || formData.state === 'ALL'}>
+                      <option value="ALL">All Districts</option>
+                      {districts.map(d => <option key={d} value={d}>{d}</option>)}
+                  </select>
               </div>
               {errors.country && <p className="text-red-500 dark:text-red-400 text-sm mt-1">{errors.country}</p>}
             </div>

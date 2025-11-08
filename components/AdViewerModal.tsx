@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { Ad, AdType } from '../types';
 import { isVideoFile } from '../utils/helpers';
 import ImageViewerModal from './ImageViewerModal';
@@ -9,9 +9,10 @@ interface AdViewerModalProps {
   ad: Ad;
   onClose: () => void;
   onComplete: (adId: string, reward: number, rating?: number) => void;
+  isPreview?: boolean;
 }
 
-const AdViewerModal: React.FC<AdViewerModalProps> = ({ ad, onClose, onComplete }) => {
+const AdViewerModal: React.FC<AdViewerModalProps> = ({ ad, onClose, onComplete, isPreview = false }) => {
   const [progress, setProgress] = useState(0);
   const [isClosing, setIsClosing] = useState(false);
   const contentRef = useRef<HTMLDivElement>(null);
@@ -20,6 +21,8 @@ const AdViewerModal: React.FC<AdViewerModalProps> = ({ ad, onClose, onComplete }
   const [userRating, setUserRating] = useState(0);
   const [hoverRating, setHoverRating] = useState(0);
   const [countdown, setCountdown] = useState<number | null>(null);
+
+  const userReward = useMemo(() => ad.reward * 0.8, [ad.reward]);
 
   const autoSubmitTimerRef = useRef<number | null>(null);
   const countdownIntervalRef = useRef<number | null>(null);
@@ -45,7 +48,7 @@ const AdViewerModal: React.FC<AdViewerModalProps> = ({ ad, onClose, onComplete }
 
   useEffect(() => {
     // Check if progress is complete and the auto-submit process hasn't started
-    if (progress >= 100 && autoSubmitTimerRef.current === null) {
+    if (progress >= 100 && autoSubmitTimerRef.current === null && !isPreview) {
         const DURATION = 3; // 3-second grace period
         setCountdown(DURATION);
 
@@ -63,7 +66,7 @@ const AdViewerModal: React.FC<AdViewerModalProps> = ({ ad, onClose, onComplete }
         if (countdownIntervalRef.current) clearInterval(countdownIntervalRef.current);
         if (autoSubmitTimerRef.current) clearTimeout(autoSubmitTimerRef.current);
     };
-  }, [progress, ad.id, ad.reward, onComplete]);
+  }, [progress, ad.id, ad.reward, onComplete, isPreview]);
 
 
   useEffect(() => {
@@ -110,7 +113,7 @@ const AdViewerModal: React.FC<AdViewerModalProps> = ({ ad, onClose, onComplete }
         onClick={(e) => e.stopPropagation()}
       >
         <div className="p-4 border-b border-slate-200 dark:border-slate-700/80 flex justify-between items-center">
-          <h2 className="text-xl font-bold text-slate-900 dark:text-white">{ad.title}</h2>
+          <h2 className="text-xl font-bold text-slate-900 dark:text-white">{ad.title} {isPreview && <span className="text-sm font-normal text-slate-500 dark:text-slate-400">(Admin Preview)</span>}</h2>
           <button onClick={handleClose} className="p-2 rounded-full hover:bg-slate-200 dark:hover:bg-slate-700/70 transition-colors">
             <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -189,6 +192,17 @@ const AdViewerModal: React.FC<AdViewerModalProps> = ({ ad, onClose, onComplete }
                 {`Please wait... (${Math.ceil(ad.duration - (ad.duration * progress) / 100)}s)`}
               </button>
             </>
+          ) : isPreview ? (
+            <div className="text-center animate-fade-in">
+                <h3 className="font-bold text-lg text-slate-800 dark:text-white">Preview Finished</h3>
+                <p className="text-sm text-slate-500 dark:text-slate-400 mb-4">This is how the ad will appear to users.</p>
+                <button
+                    onClick={handleClose}
+                    className="w-full py-3 px-4 bg-indigo-600 text-white font-bold rounded-lg hover:bg-indigo-500 transition-all hover:shadow-lg hover:shadow-indigo-500/50"
+                >
+                    Close Preview
+                </button>
+            </div>
           ) : (
             <div className="text-center animate-fade-in">
                 <h3 className="font-bold text-lg text-slate-800 dark:text-white">How was this ad?</h3>
@@ -213,7 +227,7 @@ const AdViewerModal: React.FC<AdViewerModalProps> = ({ ad, onClose, onComplete }
                     onClick={handleComplete}
                     className="w-full py-3 px-4 bg-indigo-600 text-white font-bold rounded-lg hover:bg-indigo-500 transition-all hover:shadow-lg hover:shadow-indigo-500/50"
                 >
-                    {userRating === 0 ? `Submit & Claim +₹${ad.reward.toFixed(2)}` : `Submit ${userRating}-Star & Claim +₹${ad.reward.toFixed(2)}`}
+                    {userRating === 0 ? `Submit & Claim +₹${userReward.toFixed(2)}` : `Submit ${userRating}-Star & Claim +₹${userReward.toFixed(2)}`}
                 </button>
                 <p className="text-xs text-slate-500 dark:text-slate-400 mt-2 h-4">
                     {countdown !== null && countdown > 0 && `Automatically claiming in ${countdown}s...`}
